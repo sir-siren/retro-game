@@ -3,7 +3,7 @@ pub mod render;
 pub mod state;
 
 use crate::engine::input::Key;
-use crate::engine::loop_::{run_loop, GameLoop};
+use crate::engine::loop_::{GameLoop, run_loop};
 use crate::engine::renderer::Buffer;
 use crate::games::bricks::state::BricksState;
 use crate::types::game::{Game, GameResult};
@@ -27,7 +27,7 @@ impl Bricks {
 impl GameLoop for Bricks {
     fn resize(&mut self, size: TerminalSize) {
         self.state.bounds = size;
-        let p_max = size.width.saturating_sub(5);
+        let p_max: u16 = size.width.saturating_sub(5);
         if self.state.paddle_col > p_max {
             self.state.paddle_col = p_max;
         }

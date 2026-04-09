@@ -42,7 +42,8 @@ fn check_wall_collisions(state: &mut BricksState) {
     }
 
     // Top bound
-    if state.ball.y <= 1.0 { // reserve row 0 for HUD
+    if state.ball.y <= 1.0 {
+        // reserve row 0 for HUD
         state.ball.y = 1.0;
         state.ball.dy = state.ball.dy.abs();
     }
@@ -50,28 +51,29 @@ fn check_wall_collisions(state: &mut BricksState) {
 
 /// Checks overlaps with paddle bounding box.
 fn check_paddle_collision(state: &mut BricksState) {
-    let paddle_y = f32::from(state.bounds.height.saturating_sub(2)); // Row just above bottom
-    
+    let paddle_y: f32 = f32::from(state.bounds.height.saturating_sub(2)); // Row just above bottom
+
     // Check if falling down and crossing the row threshold
     if state.ball.dy > 0.0 && state.ball.y >= paddle_y && state.ball.y <= paddle_y + 1.0 {
-        let bx_idx = state.ball.x.round() as u16;
-        if bx_idx >= state.paddle_col && bx_idx < state.paddle_col + 5 { // 5 chars wide
+        let bx_idx: u16 = state.ball.x.round() as u16;
+        if bx_idx >= state.paddle_col && bx_idx < state.paddle_col + 5 {
+            // 5 chars wide
             state.ball.y = paddle_y - 0.5;
             state.ball.dy = -state.ball.dy.abs();
-            
+
             // Reflect angle based on intersection distance from center
-            let intersect_offset = (state.ball.x - (f32::from(state.paddle_col) + 2.0)) / 2.0; 
-            state.ball.dx = intersect_offset * 1.5; 
+            let intersect_offset: f32 = (state.ball.x - (f32::from(state.paddle_col) + 2.0)) / 2.0;
+            state.ball.dx = intersect_offset * 1.5;
         }
     }
 }
 
 /// AABB collision mapping against grid structure.
 fn check_brick_collisions(state: &mut BricksState) {
-    let ball_c = state.ball.x.round() as u16;
-    let ball_r = state.ball.y.round() as u16;
+    let ball_c: u16 = state.ball.x.round() as u16;
+    let ball_r: u16 = state.ball.y.round() as u16;
 
-    let mut hit_idx = None;
+    let mut hit_idx: Option<usize> = None;
 
     for (i, brick) in state.bricks.iter().enumerate() {
         if !brick.is_alive {
@@ -86,12 +88,12 @@ fn check_brick_collisions(state: &mut BricksState) {
     }
 
     if let Some(idx) = hit_idx {
-        let brick = &mut state.bricks[idx];
+        let brick: &mut super::state::Brick = &mut state.bricks[idx];
         brick.hp = brick.hp.saturating_sub(1);
         if brick.hp == 0 {
             brick.is_alive = false;
         }
-        
+
         // Deflect back
         state.ball.dy = -state.ball.dy;
         state.score.0 = state.score.0.saturating_add(10);
@@ -115,7 +117,10 @@ fn check_level_clear(state: &mut BricksState) {
     if state.level.0 > 5 {
         return; // Finished
     }
-    let any_alive = state.bricks.iter().any(|b| b.is_alive);
+    let any_alive: bool = state
+        .bricks
+        .iter()
+        .any(|b: &super::state::Brick| b.is_alive);
     if !any_alive {
         state.showing_clear = true;
         state.transition_ticks = 30; // 1s at ~30fps
@@ -145,7 +150,7 @@ pub fn handle_input(state: &mut BricksState, key: Key) {
         }
         Key::Dir(Direction::Right) => {
             state.paddle_col = state.paddle_col.saturating_add(2);
-            let limit = state.bounds.width.saturating_sub(5);
+            let limit: u16 = state.bounds.width.saturating_sub(5);
             if state.paddle_col > limit {
                 state.paddle_col = limit;
             }
@@ -161,17 +166,20 @@ mod tests {
 
     #[test]
     fn test_brick_collision() {
-        let mut state = BricksState::new(TerminalSize { width: 80, height: 24 });
-        
-        let target = state.bricks[0];
+        let mut state: BricksState = BricksState::new(TerminalSize {
+            width: 80,
+            height: 24,
+        });
+
+        let target: crate::games::bricks::state::Brick = state.bricks[0];
         // Overlap exactly
         state.ball.x = f32::from(target.col);
         state.ball.y = f32::from(target.row);
         state.ball.dy = -1.0;
-        
+
         tick(&mut state);
-        
-        let checked = state.bricks[0];
+
+        let checked: crate::games::bricks::state::Brick = state.bricks[0];
         assert_ne!(checked.hp, target.hp);
         assert_eq!(state.ball.dy, 1.0); // Deflected
     }

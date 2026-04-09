@@ -44,7 +44,7 @@ pub fn parse_key(key: KeyEvent) -> Key {
 /// Returns `std::io::Error` if polling or reading the underlying TTY fails.
 pub fn poll_key(timeout: Duration) -> std::io::Result<Option<Key>> {
     if event::poll(timeout)? {
-        let ev = event::read()?;
+        let ev: Event = event::read()?;
         return match ev {
             Event::Key(key_event) => Ok(Some(parse_key(key_event))),
             Event::Resize(_, _) => Ok(Some(Key::None)), // Wake to handle resize

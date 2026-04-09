@@ -57,7 +57,7 @@ impl BricksState {
     /// Builds initial layout centered.
     #[must_use]
     pub fn new(bounds: TerminalSize) -> Self {
-        let mut state = Self {
+        let mut state: BricksState = Self {
             paddle_col: bounds.width.saturating_sub(5) / 2,
             ball: BallPhysics {
                 x: 0.0,
@@ -82,11 +82,11 @@ impl BricksState {
 
     /// Snaps ball to the starting vertical alignment just over paddle.
     pub fn reset_ball(&mut self) {
-        let paddle_center = f32::from(self.paddle_col) + 2.0; // 5 wide
+        let paddle_center: f32 = f32::from(self.paddle_col) + 2.0; // 5 wide
         self.ball.x = paddle_center;
         self.ball.y = f32::from(self.bounds.height.saturating_sub(3)); // Just above paddle
-        
-        let speed_mult = 1.0 + (f32::from(self.level.0) - 1.0) * 0.1;
+
+        let speed_mult: f32 = 1.0 + (f32::from(self.level.0) - 1.0) * 0.1;
         self.ball.dx = 0.5 * speed_mult;
         self.ball.dy = -0.5 * speed_mult;
     }
@@ -94,25 +94,25 @@ impl BricksState {
     /// Bootstraps grid matching target level width rules.
     pub fn spawn_level_bricks(&mut self) {
         self.bricks.clear();
-        let rows = 4 + u16::from(self.level.0.saturating_sub(1));
-        
+        let rows: u16 = 4 + u16::from(self.level.0.saturating_sub(1));
+
         // Bricks are 4 wide [##]. Let's space them 5 wide.
-        let brick_outer_width = 5;
-        let cols = self.bounds.width / brick_outer_width;
-        
-        let offset_x = (self.bounds.width.saturating_sub(cols * brick_outer_width)) / 2;
-        
+        let brick_outer_width: u16 = 5;
+        let cols: u16 = self.bounds.width / brick_outer_width;
+
+        let offset_x: u16 = (self.bounds.width.saturating_sub(cols * brick_outer_width)) / 2;
+
         for r in 0..rows {
             for c in 0..cols {
-                let top_y = 2 + r * 2;
-                let left_x = offset_x + c * brick_outer_width;
-                
+                let top_y: u16 = 2 + r * 2;
+                let left_x: u16 = offset_x + c * brick_outer_width;
+
                 let mut hp = 1;
                 // Add armored bricks starting level 3. Row check just makes it structured.
                 if self.level.0 >= 3 && r % 2 == 0 {
                     hp = 2;
                 }
-                
+
                 self.bricks.push(Brick {
                     col: left_x,
                     row: top_y,

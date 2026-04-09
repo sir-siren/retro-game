@@ -36,13 +36,13 @@ pub fn run_loop<G: GameLoop>(
     tick_ms: u64,
     mut viewport: TerminalSize,
 ) -> Result<GameResult, GameError> {
-    let mut out = stdout();
-    let mut buffer = Buffer::new(viewport);
+    let mut out: std::io::Stdout = stdout();
+    let mut buffer: Buffer = Buffer::new(viewport);
     game.resize(viewport);
 
     loop {
-        let frame_start = Instant::now();
-        let tick_duration = Duration::from_millis(tick_ms);
+        let frame_start: Instant = Instant::now();
+        let tick_duration: Duration = Duration::from_millis(tick_ms);
 
         // Resize detection loop and input drain
         if let Some(key) = poll_key(tick_duration)? {
@@ -50,7 +50,7 @@ pub fn run_loop<G: GameLoop>(
                 Key::Quit => return Ok(GameResult::Quit),
                 Key::None => {
                     // Possible resize, re-fetch bounds.
-                    let new_vp = game_viewport()?;
+                    let new_vp: TerminalSize = game_viewport()?;
                     if new_vp != viewport {
                         viewport = new_vp;
                         buffer = Buffer::new(viewport);
