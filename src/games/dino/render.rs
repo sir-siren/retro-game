@@ -1,41 +1,67 @@
-//! Renders the Dino game state into the character buffer.
-
 use crate::engine::renderer::Buffer;
 use crate::games::dino::state::{DinoObstacleKind, DinoState};
 
-/// Projects the dino domain state onto the render buffer.
+const DINO_STAND: [&str; 3] = [" ▄██", "████", " ██ "];
+
+const DINO_DUCK: [&str; 2] = ["      ", "▄█████"];
+
+const DINO_JUMP: [&str; 3] = [" ▄██", "████", "▀  ▀"];
+
+const BIRD_FRAME_A: [&str; 2] = ["/  ", " ══"];
+const BIRD_FRAME_B: [&str; 2] = ["    ", "╲══"];
+
 pub fn render(state: &DinoState, buffer: &mut Buffer) {
     draw_hud(state, buffer);
     draw_ground(state, buffer);
+    draw_clouds(state, buffer);
     draw_obstacles(state, buffer);
     draw_dino(state, buffer);
     draw_overlays(state, buffer);
 }
 
-/// Renders the top HUD row.
 fn draw_hud(state: &DinoState, buffer: &mut Buffer) {
-    let hud = format!(
-        "Level: {}   Score: {:05}   Speed: {}mph   Lives: {}",
-        state.level.0,
-        state.score.0,
-        state.speed * 8,
-        state.lives.0,
-    );
-    buffer.print(2, 0, &hud);
+    let hi_text = format!("HI {:05}", state.high_score);
+    buffer.print(state.bounds.width.saturating_sub(22), 0, &hi_text);
+
+    let score_text = format!("{:05}", state.score.0);
+    buffer.print_right(0, &score_text, 2);
 }
 
-/// Draws the ground line across the full viewport width.
 fn draw_ground(state: &DinoState, buffer: &mut Buffer) {
-    let row = DinoState::ground_line(state.bounds);
+    let ground_y = DinoState::ground_line(state.bounds);
+    let scroll = state.ground_scroll % 4;
+
     for x in 0..state.bounds.width {
-        buffer.place(x, row, '_');
+        let pattern_x = (x + scroll) % 4;
+        let ch = match pattern_x {
+            0 => '▁',
+            1 => '▁',
+            2 => '▂',
+            _ => '▁',
+        };
+        buffer.place(x, ground_y, ch);
     }
 }
 
-/// Renders each obstacle according to its kind.
+fn draw_clouds(state: &DinoState, buffer: &mut Buffer) {
+    let cloud_offset = (state.tick / 3) as u16;
+    let cloud_positions: [(u16, u16); 3] = [
+        (20_u16.wrapping_sub(cloud_offset % 60), 3),
+        (50_u16.wrapping_sub(cloud_offset % 80), 2),
+        (75_u16.wrapping_sub(cloud_offset % 90), 4),
+    ];
+
+    for (cx, cy) in &cloud_positions {
+        if *cx < state.bounds.width.saturating_sub(5) && *cx > 0 {
+            buffer.print(*cx, *cy, "═══");
+        }
+    }
+}
+
 fn draw_obstacles(state: &DinoState, buffer: &mut Buffer) {
-    let ground = DinoState::ground_line(state.bounds);
-    let stand = ground.saturating_sub(1);
+    let ground_y = DinoState::ground_line(state.bounds);
+    let stand = ground_y.saturating_sub(2);
+    let bird_frame = state.tick % 10 < 5;
 
     for obs in &state.obstacles {
         if obs.col >= state.bounds.width {
@@ -44,65 +70,94 @@ fn draw_obstacles(state: &DinoState, buffer: &mut Buffer) {
 
         match obs.kind {
             DinoObstacleKind::SmallCactus => {
-                buffer.place(obs.col, stand.saturating_sub(1), '|');
-                buffer.place(obs.col, stand, 'Y');
+                buffer.place(obs.col, stand, '│');
+                buffer.print(obs.col, stand + 1, "╥");
             }
             DinoObstacleKind::LargeCactus => {
-                buffer.place(obs.col, stand.saturating_sub(2), '|');
-                buffer.place(obs.col, stand.saturating_sub(1), '|');
-                buffer.place(obs.col, stand, 'Y');
+                buffer.place(obs.col, stand.saturating_sub(1), '│');
+                buffer.place(obs.col, stand, '┤');
+                buffer.print(obs.col, stand + 1, "╥");
             }
             DinoObstacleKind::DoubleCactus => {
-                buffer.place(obs.col, stand.saturating_sub(1), '|');
-                buffer.place(obs.col, stand, 'Y');
-                if obs.col + 2 < state.bounds.width {
-                    buffer.place(obs.col + 2, stand.saturating_sub(1), '|');
-                    buffer.place(obs.col + 2, stand, 'Y');
+                buffer.place(obs.col, stand, '│');
+                buffer.print(obs.col, stand + 1, "╥");
+                if obs.col + 3 < state.bounds.width {
+                    buffer.place(obs.col + 3, stand, '│');
+                    buffer.print(obs.col + 3, stand + 1, "╥");
                 }
             }
             DinoObstacleKind::LowBird => {
-                // At dino head height — duck under this.
-                let row = stand.saturating_sub(1);
-                buffer.print(obs.col, row, ">o<");
+                let frames = if bird_frame {
+                    &BIRD_FRAME_A
+                } else {
+                    &BIRD_FRAME_B
+                };
+                for (i, line) in frames.iter().enumerate() {
+                    buffer.print(obs.col, stand + i as u16, line);
+                }
             }
             DinoObstacleKind::HighBird => {
-                // Well above dino — purely visual.
-                let row = stand.saturating_sub(5);
-                buffer.print(obs.col, row, ">o<");
+                let row = stand.saturating_sub(4);
+                let frames = if bird_frame {
+                    &BIRD_FRAME_A
+                } else {
+                    &BIRD_FRAME_B
+                };
+                for (i, line) in frames.iter().enumerate() {
+                    buffer.print(obs.col, row + i as u16, line);
+                }
             }
         }
     }
 }
 
-/// Draws the player dino character with hurt flicker.
 fn draw_dino(state: &DinoState, buffer: &mut Buffer) {
-    let col = 5u16;
-    let flash = state.hurt_ticks > 0 && (state.hurt_ticks % 4) < 2;
+    let col = 8u16;
 
-    if flash {
-        buffer.print(col, state.dino_row, "***");
+    if state.is_game_over {
+        let sprite = &DINO_STAND;
+        for (i, line) in sprite.iter().enumerate() {
+            buffer.print(col, state.dino_row + i as u16, line);
+        }
         return;
     }
 
     if state.is_ducking {
-        // Flat ducking pose — one row, wider.
-        buffer.print(col, state.dino_row, "[o=]");
+        for (i, line) in DINO_DUCK.iter().enumerate() {
+            buffer.print(col, state.dino_row + i as u16, line);
+        }
+    } else if state.is_jumping {
+        for (i, line) in DINO_JUMP.iter().enumerate() {
+            buffer.print(col, state.dino_row + i as u16, line);
+        }
     } else {
-        // Standing — head row above body row.
-        buffer.print(col, state.dino_row.saturating_sub(1), " o ");
-        buffer.print(col, state.dino_row, "[|]");
+        let step = (state.tick / 4) % 2;
+        let sprite = &DINO_STAND;
+        for (i, line) in sprite.iter().enumerate() {
+            buffer.print(col, state.dino_row + i as u16, line);
+        }
+        if step == 0 {
+            buffer.print(col + 1, state.dino_row + 2, "█ ");
+        } else {
+            buffer.print(col + 1, state.dino_row + 2, " █");
+        }
     }
 }
 
-/// Draws game-over or level-complete overlay messages.
 fn draw_overlays(state: &DinoState, buffer: &mut Buffer) {
     if state.is_game_over {
-        let msg = "GAME OVER - Press Any Key";
-        let cx = state.bounds.width.saturating_sub(msg.len() as u16) / 2;
+        let cx = state.bounds.width / 2;
         let cy = state.bounds.height / 2;
-        buffer.print(cx, cy, msg);
-        let sub = format!("Score: {:05}  Level: {}", state.score.0, state.level.0);
-        let sx = state.bounds.width.saturating_sub(sub.len() as u16) / 2;
-        buffer.print(sx, cy + 1, &sub);
+
+        buffer.print(cx.saturating_sub(6), cy.saturating_sub(2), "╔════════════╗");
+        buffer.print(cx.saturating_sub(6), cy.saturating_sub(1), "║ GAME  OVER ║");
+        buffer.print(cx.saturating_sub(6), cy, "╚════════════╝");
+
+        let sub = format!("Score: {:05}", state.score.0);
+        #[allow(clippy::cast_possible_truncation)]
+        let sx = cx.saturating_sub(sub.len() as u16 / 2);
+        buffer.print(sx, cy + 2, &sub);
+
+        buffer.print(cx.saturating_sub(10), cy + 4, "Press any key to exit");
     }
 }

@@ -1,5 +1,3 @@
-//! Main menu renderer and input router.
-
 use std::io::stdout;
 use std::time::Duration;
 
@@ -16,14 +14,6 @@ use crate::types::error::GameError;
 use crate::types::game::Game;
 use crate::types::geometry::TerminalSize;
 
-/// Presents arcade core menu and routes to selected games.
-///
-/// Clears the terminal on entry and on every game transition so stale
-/// game content never bleeds through the diff-based buffer renderer.
-///
-/// # Errors
-///
-/// Returns `anyhow::Error` on terminal I/O failures.
 pub fn run_menu() -> anyhow::Result<()> {
     let mut out: std::io::Stdout = stdout();
 
@@ -87,9 +77,6 @@ pub fn run_menu() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Clears the terminal after a game exits and redraws the menu immediately.
-///
-/// Prevents stale game content persisting on screen when control returns here.
 fn redraw_after_game(
     buffer: &mut Buffer,
     out: &mut impl std::io::Write,
@@ -104,22 +91,43 @@ fn redraw_after_game(
     Ok(())
 }
 
-/// Renders the static menu layout into the buffer.
 fn draw_menu(buffer: &mut Buffer, vp: TerminalSize) {
     let cx = vp.width / 2;
-    let mut y = vp.height.saturating_sub(12) / 2;
+    let mut y = vp.height.saturating_sub(18) / 2;
 
-    buffer.print(cx.saturating_sub(3), y, "ARCADE");
+    buffer.print(cx.saturating_sub(12), y, "╔═══════════════════════╗");
+    y += 1;
+    buffer.print(cx.saturating_sub(12), y, "║   TERMINAL  ARCADE    ║");
+    y += 1;
+    buffer.print(cx.saturating_sub(12), y, "╚═══════════════════════╝");
     y += 2;
-    buffer.print(cx.saturating_sub(7), y, "1. Runner");
+
+    buffer.print(cx.saturating_sub(10), y, "  ┌═┐");
     y += 1;
-    buffer.print(cx.saturating_sub(7), y, "2. Bricks");
+    buffer.print(cx.saturating_sub(10), y, "1 │█│  Runner");
     y += 1;
-    buffer.print(cx.saturating_sub(7), y, "3. Snake");
+    buffer.print(cx.saturating_sub(10), y, "  └═┘");
     y += 1;
-    buffer.print(cx.saturating_sub(7), y, "4. Dino");
+
+    buffer.print(cx.saturating_sub(10), y, "  ▓▓▓");
     y += 1;
-    buffer.print(cx.saturating_sub(7), y, "5. Quit");
+    buffer.print(cx.saturating_sub(10), y, "2 ▓▓▓  Bricks");
+    y += 1;
+
+    buffer.print(cx.saturating_sub(10), y, "  ███");
+    y += 1;
+    buffer.print(cx.saturating_sub(10), y, "3 █□   Snake");
+    y += 1;
+
+    buffer.print(cx.saturating_sub(10), y, "  ▄██");
+    y += 1;
+    buffer.print(cx.saturating_sub(10), y, "4 ██   Dino");
     y += 2;
-    buffer.print(cx.saturating_sub(7), y, "Select: _");
+
+    buffer.print(cx.saturating_sub(10), y, "5      Quit");
+    y += 2;
+
+    buffer.horizontal_line(y, cx.saturating_sub(12), cx + 12, '─');
+    y += 1;
+    buffer.print(cx.saturating_sub(6), y, "Select: 1-5");
 }

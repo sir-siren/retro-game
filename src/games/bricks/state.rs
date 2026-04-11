@@ -1,64 +1,48 @@
 use crate::types::geometry::{Level, Lives, Score, TerminalSize};
 
-/// Physical translation vector and floating positional state for sub-cell increments.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BallPhysics {
-    /// Exact column sub-pixel.
     pub x: f32,
-    /// Exact row sub-pixel.
     pub y: f32,
-    /// Per-tick X translation.
     pub dx: f32,
-    /// Per-tick Y translation.
     pub dy: f32,
 }
 
-/// Target block state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Brick {
-    /// Top-left column index.
     pub col: u16,
-    /// Top-left row index.
     pub row: u16,
-    /// Number of hits remaining before destruction.
     pub hp: u8,
-    /// Whether it still participates in collisions and rendering.
     pub is_alive: bool,
 }
 
-/// Pure domain state for Bricks match.
 #[derive(Debug, Clone)]
 pub struct BricksState {
-    /// Paddle anchor point.
     pub paddle_col: u16,
-    /// Float-based moving projectile.
+    pub paddle_width: u16,
     pub ball: BallPhysics,
-    /// Matrix of remaining targets.
     pub bricks: Vec<Brick>,
-    /// Accumulated total hits.
     pub score: Score,
-    /// Progression constraint stage.
     pub level: Level,
-    /// Available retries.
     pub lives: Lives,
-    /// Viewport limits locking ball and paddle movement.
     pub bounds: TerminalSize,
-    /// True when player has no lives.
     pub is_game_over: bool,
-    /// Wait delay before transitioning to the next active state.
     pub transition_ticks: u16,
-    /// A temporary flag signaling a level was completed, allowing rendering of the clear message.
     pub showing_clear: bool,
-    /// Exit requested flag.
     pub is_complete: bool,
 }
 
 impl BricksState {
-    /// Builds initial layout centered.
+    pub const BRICK_WIDTH: u16 = 4;
+    pub const BRICK_SPACING: u16 = 5;
+    pub const HUD_HEIGHT: u16 = 2;
+    pub const PADDLE_DEFAULT_WIDTH: u16 = 7;
+
     #[must_use]
     pub fn new(bounds: TerminalSize) -> Self {
-        let mut state: BricksState = Self {
-            paddle_col: bounds.width.saturating_sub(5) / 2,
+        let mut state = Self {
+            paddle_col: bounds.width.saturating_sub(Self::PADDLE_DEFAULT_WIDTH) / 2,
+            paddle_width: Self::PADDLE_DEFAULT_WIDTH,
             ball: BallPhysics {
                 x: 0.0,
                 y: 0.0,
@@ -80,38 +64,28 @@ impl BricksState {
         state
     }
 
-    /// Snaps ball to the starting vertical alignment just over paddle.
     pub fn reset_ball(&mut self) {
-        let paddle_center: f32 = f32::from(self.paddle_col) + 2.0; // 5 wide
+        let paddle_center = f32::from(self.paddle_col) + f32::from(self.paddle_width) / 2.0;
         self.ball.x = paddle_center;
-        self.ball.y = f32::from(self.bounds.height.saturating_sub(3)); // Just above paddle
+        self.ball.y = f32::from(self.bounds.height.saturating_sub(4));
 
-        let speed_mult: f32 = 1.0 + (f32::from(self.level.0) - 1.0) * 0.1;
-        self.ball.dx = 0.5 * speed_mult;
-        self.ball.dy = -0.5 * speed_mult;
+        let speed_mult = 1.0 + (f32::from(self.level.0) - 1.0) * 0.15;
+        self.ball.dx = 0.6 * speed_mult;
+        self.ball.dy = -0.6 * speed_mult;
     }
 
-    /// Bootstraps grid matching target level width rules.
     pub fn spawn_level_bricks(&mut self) {
         self.bricks.clear();
-        let rows: u16 = 4 + u16::from(self.level.0.saturating_sub(1));
-
-        // Bricks are 4 wide [##]. Let's space them 5 wide.
-        let brick_outer_width: u16 = 5;
-        let cols: u16 = self.bounds.width / brick_outer_width;
-
-        let offset_x: u16 = (self.bounds.width.saturating_sub(cols * brick_outer_width)) / 2;
+        let rows = 3 + u16::from(self.level.0);
+        let cols = self.bounds.width / Self::BRICK_SPACING;
+        let offset_x = (self.bounds.width.saturating_sub(cols * Self::BRICK_SPACING)) / 2;
 
         for r in 0..rows {
             for c in 0..cols {
-                let top_y: u16 = 2 + r * 2;
-                let left_x: u16 = offset_x + c * brick_outer_width;
+                let top_y = Self::HUD_HEIGHT + 1 + r;
+                let left_x = offset_x + c * Self::BRICK_SPACING;
 
-                let mut hp = 1;
-                // Add armored bricks starting level 3. Row check just makes it structured.
-                if self.level.0 >= 3 && r % 2 == 0 {
-                    hp = 2;
-                }
+                let hp = if self.level.0 >= 3 && r == 0 { 2 } else { 1 };
 
                 self.bricks.push(Brick {
                     col: left_x,
@@ -121,5 +95,10 @@ impl BricksState {
                 });
             }
         }
+    }
+
+    #[must_use]
+    pub fn paddle_row(&self) -> u16 {
+        self.bounds.height.saturating_sub(3)
     }
 }

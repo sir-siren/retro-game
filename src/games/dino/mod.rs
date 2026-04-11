@@ -1,28 +1,20 @@
-//! Dino game — Chrome-style infinite obstacle runner.
-//!
-//! Jump over cacti with Space/Up. Duck under low birds with Down/S.
-//! Speed increases every level. 3 lives, 5 levels.
-
 pub mod logic;
 pub mod render;
 pub mod state;
 
 use crate::engine::input::Key;
-use crate::engine::loop_::{run_loop, GameLoop};
+use crate::engine::loop_::{GameLoop, run_loop};
 use crate::engine::renderer::Buffer;
 use crate::games::dino::state::DinoState;
 use crate::types::game::{Game, GameResult};
 use crate::types::geometry::{Direction, TerminalSize};
 
-/// Dino game session container.
 pub struct Dino {
     state: DinoState,
-    /// True while the down key is considered held.
     is_down_held: bool,
 }
 
 impl Dino {
-    /// Creates a fresh Dino session for the given viewport.
     #[must_use]
     pub fn new(viewport: TerminalSize) -> Self {
         Self {

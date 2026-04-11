@@ -9,13 +9,11 @@ use crate::games::bricks::state::BricksState;
 use crate::types::game::{Game, GameResult};
 use crate::types::geometry::TerminalSize;
 
-/// Exposes Breakout interface bridging logic bindings.
 pub struct Bricks {
     state: BricksState,
 }
 
 impl Bricks {
-    /// Creates fresh bounds tied state container.
     #[must_use]
     pub fn new(viewport: TerminalSize) -> Self {
         Self {
@@ -27,7 +25,7 @@ impl Bricks {
 impl GameLoop for Bricks {
     fn resize(&mut self, size: TerminalSize) {
         self.state.bounds = size;
-        let p_max: u16 = size.width.saturating_sub(5);
+        let p_max = size.width.saturating_sub(self.state.paddle_width);
         if self.state.paddle_col > p_max {
             self.state.paddle_col = p_max;
         }
@@ -35,7 +33,6 @@ impl GameLoop for Bricks {
 
     fn tick(&mut self) {
         if self.state.is_game_over && self.state.lives.0 == 0 {
-            // Awaiting input to terminate loop entirely
             return;
         }
         logic::tick(&mut self.state);
