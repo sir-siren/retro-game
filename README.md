@@ -1,10 +1,10 @@
 # 🕹️ Terminal Arcade
 
-A retro terminal arcade suite built in Rust — four classic games with a monochrome OLED aesthetic, rendered directly in your terminal using raw TTY mode.
+A retro terminal arcade suite built in Rust - four classic games with a monochrome OLED aesthetic, rendered directly in your terminal using raw TTY mode.
 
 ```
 ╔═══════════════════════╗
-║   TERMINAL  ARCADE   ║
+║   TERMINAL  ARCADE    ║
 ╚═══════════════════════╝
 
   ┌═┐
@@ -26,7 +26,7 @@ A retro terminal arcade suite built in Rust — four classic games with a monoch
 
 ### 🚗 Runner (Highway Dodger)
 
-A 4-lane traffic avoidance game. Dodge oncoming cars while managing your speed. The faster you go, the higher your score — but the harder it gets.
+A 4-lane traffic avoidance game. Dodge oncoming cars while managing your speed. The faster you go, the higher your score - but the harder it gets.
 
 | Control             | Action             |
 | ------------------- | ------------------ |
@@ -111,7 +111,7 @@ cargo build --release
 
 ## Features
 
-- Pure terminal rendering — no external TUI frameworks
+- Pure terminal rendering - no external TUI frameworks
 - Double-buffered diff-based renderer for flicker-free 30fps gameplay
 - Monochrome OLED retro aesthetic with Unicode box-drawing characters
 - Cross-platform: Windows, macOS, Linux, and Android (Termux)
@@ -122,9 +122,9 @@ cargo build --release
 
 See the [docs](./docs/) directory for detailed documentation:
 
-- [Architecture](./docs/architecture.md) — Module structure and data flow
-- [Building](./docs/building.md) — Build instructions for all platforms
-- [Gameplay](./docs/gameplay.md) — Detailed mechanics and scoring
+- [Architecture](./docs/architecture.md) - Module structure and data flow
+- [Building](./docs/building.md) - Build instructions for all platforms
+- [Gameplay](./docs/gameplay.md) - Detailed mechanics and scoring
 
 ## Requirements
 
@@ -134,4 +134,4 @@ See the [docs](./docs/) directory for detailed documentation:
 
 ## License
 
-MIT License — see [LICENSE](./LICENSE) for details.
+MIT License - see [LICENSE](./LICENSE) for details.
