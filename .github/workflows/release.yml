@@ -97,12 +97,6 @@ jobs:
                       use_cross: true
                       can_test: false
 
-                    - target: loongarch64-unknown-linux-gnu
-                      os: ubuntu-latest
-                      artifact: arcade-linux-loongarch64
-                      use_cross: true
-                      can_test: false
-
                     - target: powerpc64le-unknown-linux-gnu
                       os: ubuntu-latest
                       artifact: arcade-linux-ppc64le
@@ -151,12 +145,6 @@ jobs:
                       use_cross: true
                       can_test: false
 
-                    - target: loongarch64-unknown-linux-musl
-                      os: ubuntu-latest
-                      artifact: arcade-linux-loongarch64-musl
-                      use_cross: true
-                      can_test: false
-
                     - target: x86_64-unknown-freebsd
                       os: ubuntu-latest
                       artifact: arcade-freebsd-x86_64
@@ -169,33 +157,15 @@ jobs:
                       use_cross: true
                       can_test: false
 
-                    - target: aarch64-linux-android
-                      os: ubuntu-latest
-                      artifact: arcade-android-aarch64
-                      use_cross: true
-                      can_test: false
-
                     - target: armv7-linux-androideabi
                       os: ubuntu-latest
                       artifact: arcade-android-arm
                       use_cross: true
                       can_test: false
 
-                    - target: x86_64-linux-android
-                      os: ubuntu-latest
-                      artifact: arcade-android-x86_64
-                      use_cross: true
-                      can_test: false
-
-                    - target: i686-linux-android
-                      os: ubuntu-latest
-                      artifact: arcade-android-x86
-                      use_cross: true
-                      can_test: false
-
         steps:
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
 
             - name: Install Rust Toolchain
               uses: dtolnay/rust-toolchain@stable
@@ -230,65 +200,19 @@ jobs:
                   cp "$src" "${{ matrix.artifact }}"
 
             - name: Upload Artifact
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v6
               with:
                   name: ${{ matrix.artifact }}
                   path: ${{ matrix.artifact }}
 
-    build-netbsd:
-        name: Build arcade-netbsd-x86_64
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-
-            - name: Build on NetBSD
-              uses: vmactions/netbsd-vm@v1
-              with:
-                  release: "10.1"
-                  prepare: pkgin -y install curl
-                  run: |
-                      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
-                      . "$HOME/.cargo/env"
-                      cargo build --release
-                      cp target/release/${{ env.BINARY_NAME }} arcade-netbsd-x86_64
-
-            - name: Upload Artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: arcade-netbsd-x86_64
-                  path: arcade-netbsd-x86_64
-
-    build-openbsd:
-        name: Build arcade-openbsd-x86_64
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-
-            - name: Build on OpenBSD
-              uses: vmactions/openbsd-vm@v1
-              with:
-                  usesh: true
-                  prepare: pkg_add rust
-                  run: |
-                      cargo build --release
-                      cp target/release/${{ env.BINARY_NAME }} arcade-openbsd-x86_64
-
-            - name: Upload Artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: arcade-openbsd-x86_64
-                  path: arcade-openbsd-x86_64
-
     release:
         name: Release
-        needs: [build, build-netbsd, build-openbsd]
+        needs: [build]
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
               with:
                   fetch-depth: 0
 
@@ -299,7 +223,7 @@ jobs:
                   echo "tag=v0.${COUNT}.0" >> "$GITHUB_OUTPUT"
 
             - name: Download Artifacts
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v7
               with:
                   path: artifacts
 
