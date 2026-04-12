@@ -55,23 +55,11 @@ jobs:
                       use_cross: false
                       can_test: false
 
-                    - target: x86_64-pc-windows-gnu
-                      os: windows-latest
-                      artifact: arcade-windows-x86_64-gnu.exe
-                      use_cross: false
-                      can_test: true
-
                     - target: x86_64-unknown-linux-gnu
                       os: ubuntu-latest
                       artifact: arcade-linux-x86_64
                       use_cross: false
                       can_test: true
-
-                    - target: i686-unknown-linux-gnu
-                      os: ubuntu-latest
-                      artifact: arcade-linux-x86
-                      use_cross: true
-                      can_test: false
 
                     - target: aarch64-unknown-linux-gnu
                       os: ubuntu-latest
@@ -85,75 +73,15 @@ jobs:
                       use_cross: true
                       can_test: false
 
-                    - target: arm-unknown-linux-gnueabihf
-                      os: ubuntu-latest
-                      artifact: arcade-linux-armv6
-                      use_cross: true
-                      can_test: false
-
-                    - target: riscv64gc-unknown-linux-gnu
-                      os: ubuntu-latest
-                      artifact: arcade-linux-riscv64
-                      use_cross: true
-                      can_test: false
-
-                    - target: powerpc64le-unknown-linux-gnu
-                      os: ubuntu-latest
-                      artifact: arcade-linux-ppc64le
-                      use_cross: true
-                      can_test: false
-
-                    - target: powerpc64-unknown-linux-gnu
-                      os: ubuntu-latest
-                      artifact: arcade-linux-ppc64
-                      use_cross: true
-                      can_test: false
-
-                    - target: s390x-unknown-linux-gnu
-                      os: ubuntu-latest
-                      artifact: arcade-linux-s390x
-                      use_cross: true
-                      can_test: false
-
                     - target: x86_64-unknown-linux-musl
                       os: ubuntu-latest
                       artifact: arcade-linux-x86_64-musl
                       use_cross: true
                       can_test: false
 
-                    - target: i686-unknown-linux-musl
-                      os: ubuntu-latest
-                      artifact: arcade-linux-x86-musl
-                      use_cross: true
-                      can_test: false
-
                     - target: aarch64-unknown-linux-musl
                       os: ubuntu-latest
                       artifact: arcade-linux-aarch64-musl
-                      use_cross: true
-                      can_test: false
-
-                    - target: armv7-unknown-linux-musleabihf
-                      os: ubuntu-latest
-                      artifact: arcade-linux-armv7-musl
-                      use_cross: true
-                      can_test: false
-
-                    - target: arm-unknown-linux-musleabihf
-                      os: ubuntu-latest
-                      artifact: arcade-linux-armv6-musl
-                      use_cross: true
-                      can_test: false
-
-                    - target: x86_64-unknown-freebsd
-                      os: ubuntu-latest
-                      artifact: arcade-freebsd-x86_64
-                      use_cross: true
-                      can_test: false
-
-                    - target: i686-unknown-freebsd
-                      os: ubuntu-latest
-                      artifact: arcade-freebsd-x86
                       use_cross: true
                       can_test: false
 
