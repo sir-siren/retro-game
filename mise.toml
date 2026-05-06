@@ -1,0 +1,396 @@
+# =============================================================================
+# mise.toml — terminal-games / arcade
+# =============================================================================
+# Run `mise install` once, then `mise tasks` to see every available task.
+# All tasks are designed to be run from the repository root.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Tools
+# -----------------------------------------------------------------------------
+
+[tools]
+rust = "stable"
+
+# -----------------------------------------------------------------------------
+# Environment
+# -----------------------------------------------------------------------------
+
+[env]
+CARGO_TERM_COLOR = "always"
+BINARY_NAME      = "arcade"
+
+# =============================================================================
+# Tasks
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# ── Dev (fast iteration) ──────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.run]
+description = "Run the arcade in dev mode (fast compile, debug symbols)"
+alias       = "r"
+run         = "cargo run"
+
+[tasks.dev]
+description = "Alias for run — launch the arcade in dev mode"
+alias       = "d"
+run         = "cargo run"
+
+# -----------------------------------------------------------------------------
+# ── Preview (optimised + debuggable) ─────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.preview]
+description = "Run the arcade with release optimisations but full debug symbols (good for profiling)"
+alias       = "p"
+run         = "cargo run --profile preview"
+
+[tasks."preview:build"]
+description = "Build the preview binary without running it"
+alias       = "pb"
+run         = "cargo build --profile preview"
+
+# -----------------------------------------------------------------------------
+# ── Release build ────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.build]
+description = "Build the arcade in release mode (thin LTO, stripped symbols)"
+alias       = "b"
+run         = "cargo build --release"
+
+[tasks."build:open"]
+description = "Build release binary and print its path"
+alias       = "bo"
+run         = """
+cargo build --release
+echo "Binary: target/release/$BINARY_NAME"
+"""
+
+# -----------------------------------------------------------------------------
+# ── Smol (ultra-size optimised) ───────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.smol]
+description = "Build the smallest possible binary (opt-level=z, thin LTO, abort-on-panic, stripped)"
+alias       = "s"
+run         = """
+echo "Building smol binary..."
+cargo build --profile smol
+SIZE=$(du -sh target/smol/$BINARY_NAME 2>/dev/null | cut -f1)
+echo "Done: target/smol/$BINARY_NAME  ($SIZE)"
+"""
+
+[tasks."smol:lto"]
+description = "Build the absolute smallest binary with full fat LTO (slow compile, maximum size reduction)"
+alias       = "sl"
+run         = """
+echo "Building smol-lto binary (full fat LTO - this will take a while)..."
+cargo build --profile smol-lto
+SIZE=$(du -sh target/smol-lto/$BINARY_NAME 2>/dev/null | cut -f1)
+echo "Done: target/smol-lto/$BINARY_NAME  ($SIZE)"
+"""
+
+[tasks."smol:compare"]
+description = "Build all profiles and compare binary sizes side by side"
+alias       = "sc"
+run         = """
+echo "Building all profiles for size comparison..."
+echo ""
+
+cargo build 2>/dev/null
+cargo build --release 2>/dev/null
+cargo build --profile preview 2>/dev/null
+cargo build --profile smol 2>/dev/null
+cargo build --profile smol-lto 2>/dev/null
+
+echo "===================================="
+echo "  Binary Size Comparison"
+echo "===================================="
+
+for profile_dir in debug preview release smol smol-lto; do
+  BIN="target/$profile_dir/$BINARY_NAME"
+  if [ -f "$BIN" ]; then
+    SIZE=$(du -sh "$BIN" | cut -f1)
+    printf "  %-12s  %s\n" "$profile_dir:" "$SIZE"
+  fi
+done
+
+echo "===================================="
+"""
+
+# -----------------------------------------------------------------------------
+# ── Check ────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.check]
+description = "Type-check the project without producing a binary"
+alias       = "c"
+run         = "cargo check"
+
+[tasks."check:all"]
+description = "Type-check including all targets (tests, benches)"
+alias       = "ca"
+run         = "cargo check --all-targets"
+
+# -----------------------------------------------------------------------------
+# ── Test ─────────────────────────────────────────────────────────────────────
+# Each game's logic.rs has inline unit tests:
+#   bricks/logic.rs  — brick collision deflection
+#   dino/logic.rs    — jump, duck hitbox, collision
+#   runner/logic.rs  — lane switching, speed bounds, collision detection
+#   snake/logic.rs   — movement, direction reversal
+# -----------------------------------------------------------------------------
+
+[tasks.test]
+description = "Run all unit tests via cargo-nextest"
+alias       = "t"
+run         = "cargo nextest run"
+
+[tasks."test:std"]
+description = "Run tests with the built-in cargo test runner"
+run         = "cargo test"
+
+[tasks."test:verbose"]
+description = "Run tests with full stdout output (shows println! inside tests)"
+alias       = "tv"
+run         = "cargo nextest run --no-capture"
+
+[tasks."test:bricks"]
+description = "Run only the bricks game unit tests"
+run         = "cargo nextest run bricks"
+
+[tasks."test:dino"]
+description = "Run only the dino game unit tests"
+run         = "cargo nextest run dino"
+
+[tasks."test:runner"]
+description = "Run only the runner game unit tests"
+run         = "cargo nextest run runner"
+
+[tasks."test:snake"]
+description = "Run only the snake game unit tests"
+run         = "cargo nextest run snake"
+
+# -----------------------------------------------------------------------------
+# ── Lint ─────────────────────────────────────────────────────────────────────
+# main.rs enables clippy::all, clippy::pedantic, clippy::nursery
+# -----------------------------------------------------------------------------
+
+[tasks.lint]
+description = "Run Clippy with all lints enabled (matches src/main.rs deny flags)"
+alias       = "l"
+run         = "cargo clippy -- -D clippy::all -D clippy::pedantic -D clippy::nursery"
+
+[tasks."lint:fix"]
+description = "Run Clippy and auto-apply machine-applicable fixes"
+alias       = "lf"
+run         = "cargo clippy --fix --allow-dirty -- -D clippy::all -D clippy::pedantic -D clippy::nursery"
+
+[tasks."lint:gentle"]
+description = "Run Clippy with only -D warnings (less strict, good for quick checks)"
+alias       = "lg"
+run         = "cargo clippy -- -D warnings"
+
+# -----------------------------------------------------------------------------
+# ── Format ───────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.fmt]
+description = "Format all source files with rustfmt"
+alias       = "f"
+run         = "cargo fmt"
+
+[tasks."fmt:check"]
+description = "Check formatting without writing changes (used in CI)"
+alias       = "fc"
+run         = "cargo fmt -- --check"
+
+# -----------------------------------------------------------------------------
+# ── Watch ────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.watch]
+description = "Watch for file changes and re-run the arcade (dev mode)"
+alias       = "w"
+run         = "cargo watch -x run"
+
+[tasks."watch:check"]
+description = "Watch for file changes and re-run cargo check"
+alias       = "wc"
+run         = "cargo watch -x check"
+
+[tasks."watch:test"]
+description = "Watch for file changes and re-run all tests"
+alias       = "wt"
+run         = "cargo watch -x 'nextest run'"
+
+[tasks."watch:lint"]
+description = "Watch for file changes and re-run Clippy"
+alias       = "wl"
+run         = "cargo watch -x 'clippy -- -D warnings'"
+
+# -----------------------------------------------------------------------------
+# ── Docs ─────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.doc]
+description = "Build and open the project documentation in your browser"
+alias       = "doc"
+run         = "cargo doc --open --no-deps"
+
+# -----------------------------------------------------------------------------
+# ── Security Audit ────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.audit]
+description = "Scan Cargo.lock for known CVEs"
+alias       = "au"
+run         = "cargo audit"
+
+# -----------------------------------------------------------------------------
+# ── Cross-compilation ─────────────────────────────────────────────────────────
+# These match the targets in .github/workflows/release.yml.
+# Requires: cargo install cross  AND  Docker running for non-native targets.
+# -----------------------------------------------------------------------------
+
+[tasks."cross:linux-x64"]
+description = "Cross-compile release binary for Linux x86_64"
+run         = "cargo build --release --target x86_64-unknown-linux-gnu"
+
+[tasks."cross:linux-x64-musl"]
+description = "Cross-compile static musl binary for Linux x86_64 (portable, no libc dependency)"
+run         = """
+rustup target add x86_64-unknown-linux-musl 2>/dev/null || true
+cross build --profile smol --target x86_64-unknown-linux-musl
+"""
+
+[tasks."cross:linux-arm64"]
+description = "Cross-compile release binary for Linux ARM64 (requires cross + Docker)"
+run         = "cross build --release --target aarch64-unknown-linux-gnu"
+
+[tasks."cross:windows-x64"]
+description = "Cross-compile release binary for Windows x86_64"
+run         = "cargo build --release --target x86_64-pc-windows-msvc"
+
+[tasks."cross:android-arm"]
+description = "Cross-compile for Android ARM (Termux) — requires cross + Docker"
+run         = "cross build --release --target armv7-linux-androideabi"
+
+[tasks."cross:all-smol"]
+description = "Build ultra-small smol binaries for all major platforms (requires cross + Docker)"
+run         = """
+echo "Building smol binaries for all platforms..."
+echo ""
+
+TARGETS=(
+  "x86_64-unknown-linux-gnu"
+  "x86_64-unknown-linux-musl"
+  "aarch64-unknown-linux-gnu"
+  "x86_64-pc-windows-msvc"
+  "armv7-linux-androideabi"
+)
+
+for TARGET in "${TARGETS[@]}"; do
+  echo "-- $TARGET --"
+  cross build --profile smol --target "$TARGET" || true
+  echo ""
+done
+
+echo "Done. Check target/<platform>/smol/"
+"""
+
+# -----------------------------------------------------------------------------
+# ── Full CI Pipeline ──────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.ci]
+description = "Full CI pipeline: fmt-check > check > clippy > test > build release"
+alias       = "ci"
+run         = """
+echo "-- 1/5  fmt:check --"
+cargo fmt -- --check
+
+echo "-- 2/5  check --"
+cargo check --all-targets
+
+echo "-- 3/5  clippy --"
+cargo clippy -- -D clippy::all -D clippy::pedantic -D clippy::nursery
+
+echo "-- 4/5  test --"
+cargo nextest run
+
+echo "-- 5/5  build release --"
+cargo build --release
+
+echo ""
+echo "CI passed"
+"""
+
+[tasks."ci:smol"]
+description = "Full CI pipeline ending with a smol size build + size report"
+run         = """
+echo "-- 1/5  fmt:check --"
+cargo fmt -- --check
+
+echo "-- 2/5  check --"
+cargo check --all-targets
+
+echo "-- 3/5  clippy --"
+cargo clippy -- -D clippy::all -D clippy::pedantic -D clippy::nursery
+
+echo "-- 4/5  test --"
+cargo nextest run
+
+echo "-- 5/5  smol build --"
+cargo build --profile smol
+
+SIZE=$(du -sh target/smol/$BINARY_NAME 2>/dev/null | cut -f1)
+echo ""
+echo "CI passed -- smol binary: $SIZE"
+"""
+
+# -----------------------------------------------------------------------------
+# ── Clean ────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.clean]
+description = "Remove all build artefacts"
+alias       = "cl"
+run         = "cargo clean"
+
+[tasks."clean:release"]
+description = "Remove only release/smol artefacts, keep dev build cache intact"
+run         = """
+rm -rf target/release target/smol target/smol-lto target/preview
+echo "Release artefacts removed"
+"""
+
+# -----------------------------------------------------------------------------
+# ── Info ─────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+
+[tasks.info]
+description = "Print toolchain info, dependency tree, and sizes of any built binaries"
+alias       = "i"
+run         = """
+echo "-- Toolchain --"
+rustc --version
+cargo --version
+
+echo ""
+echo "-- Dependencies (depth 1) --"
+cargo tree --depth 1
+
+echo ""
+echo "-- Built binaries --"
+for profile_dir in debug preview release smol smol-lto; do
+  BIN="target/$profile_dir/$BINARY_NAME"
+  if [ -f "$BIN" ]; then
+    SIZE=$(du -sh "$BIN" | cut -f1)
+    printf "  %-12s  %s\n" "$profile_dir:" "$SIZE"
+  fi
+done
+"""
