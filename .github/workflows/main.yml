@@ -33,7 +33,7 @@ jobs:
                       canTest: true
 
                     - target: x86_64-apple-darwin
-                      os: macos-15
+                      os: macos-15-intel
                       artifact: arcade-macos-x86_64
                       useCross: false
                       canTest: true
@@ -140,12 +140,19 @@ jobs:
                   sha256sum * | sort > ../SHASUMS256.txt
                   cat ../SHASUMS256.txt
 
+            - name: createTag
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git tag ${{ steps.version.outputs.tag }}
+                  git push origin ${{ steps.version.outputs.tag }}
+
             - name: publishRelease
               uses: softprops/action-gh-release@v3
               with:
-                  tagName: ${{ steps.version.outputs.tag }}
+                  tag_name: ${{ steps.version.outputs.tag }}
                   name: Release ${{ steps.version.outputs.tag }}
-                  generateReleaseNotes: true
+                  generate_release_notes: true
                   files: |
                       artifacts/*
                       SHASUMS256.txt
