@@ -1,0 +1,154 @@
+name: Build & Release
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+permissions:
+    contents: write
+
+defaults:
+    run:
+        shell: bash
+
+env:
+    CARGO_TERM_COLOR: always
+    BINARY_NAME: arcade
+    RUSTFLAGS: >-
+        -C opt-level=z
+        -C lto=fat
+        -C codegen-units=1
+        -C strip=symbols
+        -C panic=abort
+
+jobs:
+    build:
+        name: Build ${{ matrix.artifact }}
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - target: aarch64-apple-darwin
+                      os: macos-latest
+                      artifact: arcade-macos-aarch64
+                      useCross: false
+                      canTest: true
+
+                    - target: x86_64-apple-darwin
+                      os: macos-13
+                      artifact: arcade-macos-x86_64
+                      useCross: false
+                      canTest: true
+
+                    - target: x86_64-pc-windows-msvc
+                      os: windows-latest
+                      artifact: arcade-windows-x86_64.exe
+                      useCross: false
+                      canTest: true
+
+                    - target: aarch64-pc-windows-msvc
+                      os: windows-latest
+                      artifact: arcade-windows-aarch64.exe
+                      useCross: false
+                      canTest: false
+
+                    - target: x86_64-unknown-linux-gnu
+                      os: ubuntu-latest
+                      artifact: arcade-linux-x86_64
+                      useCross: false
+                      canTest: true
+
+                    - target: aarch64-unknown-linux-gnu
+                      os: ubuntu-latest
+                      artifact: arcade-linux-aarch64
+                      useCross: true
+                      canTest: false
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+
+            - name: installRustToolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  targets: ${{ matrix.target }}
+                  components: rust-src
+
+            - name: restoreCache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  key: ${{ matrix.target }}
+
+            - name: installCross
+              if: matrix.useCross
+              uses: taiki-e/install-action@v2
+              with:
+                  tool: cross
+
+            - name: buildBinary
+              run: |
+                  cmd="cargo"
+                  [ "${{ matrix.useCross }}" = "true" ] && cmd="cross"
+                  $cmd build --release --target ${{ matrix.target }}
+
+            - name: runTests
+              if: matrix.canTest
+              run: cargo test --release --target ${{ matrix.target }}
+
+            - name: stageArtifact
+              run: |
+                  src="target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}"
+                  [ "${{ runner.os }}" = "Windows" ] && src="${src}.exe"
+                  cp "$src" "${{ matrix.artifact }}"
+
+            - name: uploadArtifact
+              uses: actions/upload-artifact@v7
+              with:
+                  name: ${{ matrix.artifact }}
+                  path: ${{ matrix.artifact }}
+                  archive: false
+                  retentionDays: 1
+
+    release:
+        name: Release
+        needs: [build]
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: generateVersionTag
+              id: version
+              run: |
+                  COUNT=$(git rev-list --count HEAD)
+                  echo "tag=v0.${COUNT}.0" >> "$GITHUB_OUTPUT"
+
+            - name: downloadArtifacts
+              uses: actions/download-artifact@v8
+              with:
+                  path: artifacts
+                  merge-multiple: true
+
+            - name: generateChecksums
+              run: |
+                  cd artifacts
+                  sha256sum * | sort > ../SHASUMS256.txt
+                  cat ../SHASUMS256.txt
+
+            - name: publishRelease
+              uses: softprops/action-gh-release@v3
+              with:
+                  tagName: ${{ steps.version.outputs.tag }}
+                  name: Release ${{ steps.version.outputs.tag }}
+                  generateReleaseNotes: true
+                  files: |
+                      artifacts/*
+                      SHASUMS256.txt
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
