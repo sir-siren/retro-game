@@ -16,12 +16,7 @@ defaults:
 env:
     CARGO_TERM_COLOR: always
     BINARY_NAME: arcade
-    RUSTFLAGS: >-
-        -C opt-level=z
-        -C lto=fat
-        -C codegen-units=1
-        -C strip=symbols
-        -C panic=abort
+    RUSTFLAGS_BASE: "-C opt-level=z -C lto=fat -C codegen-units=1 -C strip=symbols"
 
 jobs:
     build:
@@ -68,7 +63,7 @@ jobs:
                       canTest: false
 
         steps:
-            - name: Checkout
+            - name: checkout
               uses: actions/checkout@v6
 
             - name: installRustToolchain
@@ -89,6 +84,8 @@ jobs:
                   tool: cross
 
             - name: buildBinary
+              env:
+                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }} -C panic=abort"
               run: |
                   cmd="cargo"
                   [ "${{ matrix.useCross }}" = "true" ] && cmd="cross"
@@ -96,6 +93,8 @@ jobs:
 
             - name: runTests
               if: matrix.canTest
+              env:
+                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }}"
               run: cargo test --release --target ${{ matrix.target }}
 
             - name: stageArtifact
@@ -118,7 +117,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout
+            - name: checkout
               uses: actions/checkout@v6
               with:
                   fetch-depth: 0
