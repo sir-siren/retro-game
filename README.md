@@ -2,7 +2,7 @@
 
 Four classic arcade games in your terminal. No GPU. No browser. No Electron. Just Rust, raw TTY mode, and Unicode box-drawing characters.
 
-```
+```sh
 ╔═══════════════════════╗
 ║   TERMINAL  ARCADE    ║
 ╚═══════════════════════╝
@@ -65,8 +65,6 @@ Chrome T-Rex clone. Jump cacti, duck birds, survive as long as possible.
 | `↓` / `S`           | Duck (hold) |
 | `Q`                 | Menu        |
 
----
-
 ## Install
 
 ### Build from source
@@ -75,30 +73,30 @@ Requires Rust 1.85+.
 
 ```bash
 git clone https://github.com/sir-siren/terminal-arcade.git
+```
+```sh
 cd terminal-arcade
+```
+```sh
 RUSTFLAGS="-C target-cpu=native" cargo build --release
+```
+```sh
 ./target/release/arcade
 ```
 
----
-
 ## Stack
 
-- [`crossterm`](https://github.com/crossterm-rs/crossterm) — cross-platform raw terminal I/O
-- [`thiserror`](https://github.com/dtolnay/thiserror) — error types
-- [`anyhow`](https://github.com/dtolnay/anyhow) — error propagation
+- [`crossterm`](https://github.com/crossterm-rs/crossterm) - cross-platform raw terminal I/O
+- [`thiserror`](https://github.com/dtolnay/thiserror) - error types
+- [`anyhow`](https://github.com/dtolnay/anyhow) - error propagation
 
 No TUI framework. The renderer is a hand-rolled double-buffered character grid that only writes cells that changed since the last frame. 30fps, flicker-free.
-
----
 
 ## Requirements
 
 - UTF-8 terminal with Unicode support
 - Minimum 60×20 terminal size (80×24 recommended)
 
----
-
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT - see [LICENSE](./LICENSE).
