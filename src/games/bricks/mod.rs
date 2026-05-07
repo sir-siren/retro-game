@@ -70,7 +70,7 @@ impl GameLoop for Bricks {
 }
 
 impl Game for Bricks {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Bricks"
     }
 

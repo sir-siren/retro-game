@@ -57,8 +57,8 @@ pub fn run_loop<G: GameLoop>(
         buffer.flush(raw_w, raw_h, &mut out)?;
 
         let elapsed = frame_start.elapsed();
-        if elapsed < tick_duration {
-            std::thread::sleep(tick_duration - elapsed);
+        if let Some(remaining) = tick_duration.checked_sub(elapsed) {
+            std::thread::sleep(remaining);
         }
     }
 }

@@ -15,7 +15,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ## Quick Build
 
 ```bash
-cargo build --release
+RUSTFLAGS="-C target-cpu=native" cargo build --release
 ```
 
 The binary will be at `./target/release/arcade` (or `arcade.exe` on Windows).

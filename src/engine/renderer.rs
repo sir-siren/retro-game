@@ -45,7 +45,7 @@ impl Buffer {
     }
 
     pub fn print_right(&mut self, y: u16, text: &str, margin: u16) {
-        let len = text.len() as u16;
+        let len = u16::try_from(text.len()).unwrap_or(u16::MAX);
         let x = self.width.saturating_sub(len).saturating_sub(margin);
         self.print(x, y, text);
     }

@@ -69,7 +69,7 @@ impl BricksState {
         self.ball.x = paddle_center;
         self.ball.y = f32::from(self.bounds.height.saturating_sub(4));
 
-        let speed_mult = 1.0 + (f32::from(self.level.0) - 1.0) * 0.15;
+        let speed_mult = (f32::from(self.level.0) - 1.0).mul_add(0.15, 1.0);
         self.ball.dx = 0.6 * speed_mult;
         self.ball.dy = -0.6 * speed_mult;
     }
@@ -98,7 +98,7 @@ impl BricksState {
     }
 
     #[must_use]
-    pub fn paddle_row(&self) -> u16 {
+    pub const fn paddle_row(&self) -> u16 {
         self.bounds.height.saturating_sub(3)
     }
 }

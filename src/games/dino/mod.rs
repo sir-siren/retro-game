@@ -5,7 +5,7 @@ pub mod state;
 use crate::engine::input::Key;
 use crate::engine::loop_::{GameLoop, run_loop};
 use crate::engine::renderer::Buffer;
-use crate::games::dino::state::DinoState;
+use crate::games::dino::state::{DinoState, DinoStatus};
 use crate::types::game::{Game, GameResult};
 use crate::types::geometry::{Direction, TerminalSize};
 
@@ -28,7 +28,7 @@ impl GameLoop for Dino {
     fn resize(&mut self, size: TerminalSize) {
         self.state.bounds = size;
         let stand = DinoState::stand_row(size);
-        if !self.state.is_jumping {
+        if !self.state.status.is_jumping() {
             self.state.dino_row = stand;
         }
     }
@@ -41,8 +41,8 @@ impl GameLoop for Dino {
     }
 
     fn handle_input(&mut self, key: Key) {
-        if self.state.is_game_over && key != Key::None {
-            self.state.is_complete = true;
+        if self.state.status.is_game_over() && key != Key::None {
+            self.state.status = DinoStatus::Complete;
             return;
         }
 
@@ -55,17 +55,10 @@ impl GameLoop for Dino {
     }
 
     fn status(&self) -> Option<GameResult> {
-        if self.state.is_complete {
-            Some(if self.state.is_game_over {
-                GameResult::GameOver {
-                    score: self.state.score,
-                    level: self.state.level,
-                }
-            } else {
-                GameResult::Complete {
-                    score: self.state.score,
-                    level: self.state.level,
-                }
+        if self.state.status.is_complete() {
+            Some(GameResult::GameOver {
+                score: self.state.score,
+                level: self.state.level,
             })
         } else {
             None
@@ -74,7 +67,7 @@ impl GameLoop for Dino {
 }
 
 impl Game for Dino {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Dino"
     }
 

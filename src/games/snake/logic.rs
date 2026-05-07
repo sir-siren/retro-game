@@ -46,7 +46,7 @@ fn step_snake(state: &mut SnakeState) {
 
     if next_head.x < 0
         || next_head.x > state.play_area_right()
-        || next_head.y < state.play_area_top()
+        || next_head.y < SnakeState::play_area_top()
         || next_head.y > state.play_area_bottom()
     {
         state.is_game_over = true;
@@ -72,7 +72,7 @@ fn step_snake(state: &mut SnakeState) {
     }
 }
 
-fn can_turn(current: Direction, next: Direction) -> bool {
+const fn can_turn(current: Direction, next: Direction) -> bool {
     !matches!(
         (current, next),
         (Direction::Up, Direction::Down)
@@ -86,13 +86,15 @@ fn place_food(state: &mut SnakeState) {
     let mut attempt: u64 = 0;
     loop {
         attempt += 1;
-        #[allow(clippy::cast_possible_wrap)]
-        let rx =
-            (fast_rand(u64::from(state.score.0) ^ attempt) % u64::from(state.bounds.width)) as i32;
-        #[allow(clippy::cast_possible_wrap)]
-        let ry_raw = (fast_rand(u64::from(state.score.0).wrapping_mul(11) ^ attempt)
-            % u64::from(state.bounds.height.saturating_sub(SnakeState::HUD_HEIGHT)))
-            as i32;
+        let rx = i32::try_from(
+            fast_rand(u64::from(state.score.0) ^ attempt) % u64::from(state.bounds.width),
+        )
+        .unwrap_or(0);
+        let ry_raw = i32::try_from(
+            fast_rand(u64::from(state.score.0).wrapping_mul(11) ^ attempt)
+                % u64::from(state.bounds.height.saturating_sub(SnakeState::HUD_HEIGHT)),
+        )
+        .unwrap_or(0);
         let ry = ry_raw + i32::from(SnakeState::HUD_HEIGHT);
 
         let candidate = Vec2::new(rx, ry);

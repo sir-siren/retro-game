@@ -95,7 +95,7 @@ Requires Rust 1.85.0 or later.
 ```bash
 git clone https://github.com/yourusername/terminal-arcade.git
 cd terminal-arcade
-cargo build --release
+RUSTFLAGS="-C target-cpu=native" cargo build --release
 ./target/release/arcade
 ```
 

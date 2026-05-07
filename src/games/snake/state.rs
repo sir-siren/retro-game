@@ -41,10 +41,8 @@ impl SnakeState {
     }
 
     pub fn reset_snake(&mut self) {
-        #[allow(clippy::cast_possible_wrap)]
-        let cx = (self.bounds.width / 2) as i32;
-        #[allow(clippy::cast_possible_wrap)]
-        let cy = (self.bounds.height / 2) as i32;
+        let cx = i32::from(self.bounds.width) / 2;
+        let cy = i32::from(self.bounds.height) / 2;
 
         self.segments.clear();
         self.segments.push_back(Vec2::new(cx, cy));
@@ -59,21 +57,17 @@ impl SnakeState {
     }
 
     #[must_use]
-    pub fn play_area_top(&self) -> i32 {
-        i32::from(Self::HUD_HEIGHT)
+    pub const fn play_area_top() -> i32 {
+        Self::HUD_HEIGHT as i32
     }
 
     #[must_use]
-    pub fn play_area_bottom(&self) -> i32 {
-        #[allow(clippy::cast_possible_wrap)]
-        let h = self.bounds.height as i32;
-        h - 1
+    pub const fn play_area_bottom(&self) -> i32 {
+        self.bounds.height as i32 - 1
     }
 
     #[must_use]
-    pub fn play_area_right(&self) -> i32 {
-        #[allow(clippy::cast_possible_wrap)]
-        let w = self.bounds.width as i32;
-        w - 1
+    pub const fn play_area_right(&self) -> i32 {
+        self.bounds.width as i32 - 1
     }
 }

@@ -31,15 +31,11 @@ pub fn handle_input(state: &mut RunnerState, key: Key) {
     }
 
     match key {
-        Key::Dir(Direction::Up) => {
-            if state.player_lane > 0 {
-                state.player_lane -= 1;
-            }
+        Key::Dir(Direction::Up) if state.player_lane > 0 => {
+            state.player_lane -= 1;
         }
-        Key::Dir(Direction::Down) => {
-            if state.player_lane < RunnerState::lane_count() - 1 {
-                state.player_lane += 1;
-            }
+        Key::Dir(Direction::Down) if state.player_lane < RunnerState::lane_count() - 1 => {
+            state.player_lane += 1;
         }
         Key::Dir(Direction::Right) | Key::Action => {
             state.speed = (state.speed + SPEED_INCREMENT).min(MAX_SPEED);
@@ -66,8 +62,8 @@ fn move_obstacles(state: &mut RunnerState) {
     state.obstacles.retain(|car| car.col > 0);
 }
 
-fn check_collision(state: &mut RunnerState) {
-    let player_left = state.player_col();
+pub fn check_collision(state: &mut RunnerState) {
+    let player_left = RunnerState::player_col();
     let player_right = player_left + PLAYER_WIDTH;
     let player_lane = state.player_lane;
 
@@ -173,7 +169,7 @@ mod tests {
         state.player_lane = 2;
         state.obstacles.push(TrafficCar {
             lane: 2,
-            col: state.player_col(),
+            col: RunnerState::player_col(),
             width: 5,
         });
         check_collision(&mut state);

@@ -37,12 +37,12 @@ impl RunnerState {
     }
 
     #[must_use]
-    pub fn lane_count() -> u8 {
+    pub const fn lane_count() -> u8 {
         4
     }
 
     #[must_use]
-    pub fn hud_height() -> u16 {
+    pub const fn hud_height() -> u16 {
         2
     }
 
@@ -61,7 +61,7 @@ impl RunnerState {
     }
 
     #[must_use]
-    pub fn player_col(&self) -> u16 {
+    pub const fn player_col() -> u16 {
         6
     }
 }

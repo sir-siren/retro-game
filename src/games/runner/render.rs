@@ -47,7 +47,7 @@ fn draw_obstacles(state: &RunnerState, buffer: &mut Buffer) {
         };
 
         for (offset, line) in sprites.iter().enumerate() {
-            let y: u16 = center_y.saturating_sub(1) + offset as u16;
+            let y: u16 = center_y.saturating_sub(1) + u16::try_from(offset).unwrap_or(0);
             if car.col < state.bounds.width {
                 buffer.print(car.col, y, line);
             }
@@ -57,10 +57,10 @@ fn draw_obstacles(state: &RunnerState, buffer: &mut Buffer) {
 
 fn draw_player(state: &RunnerState, buffer: &mut Buffer) {
     let center_y: u16 = state.lane_y(state.player_lane);
-    let col: u16 = state.player_col();
+    let col: u16 = RunnerState::player_col();
 
     for (offset, line) in PLAYER_CAR.iter().enumerate() {
-        let y: u16 = center_y.saturating_sub(1) + offset as u16;
+        let y: u16 = center_y.saturating_sub(1) + u16::try_from(offset).unwrap_or(0);
         buffer.print(col, y, line);
     }
 }

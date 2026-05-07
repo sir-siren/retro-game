@@ -24,7 +24,7 @@ pub fn tick(state: &mut BricksState) {
     check_level_clear(state);
 }
 
-pub fn handle_input(state: &mut BricksState, key: Key) {
+pub const fn handle_input(state: &mut BricksState, key: Key) {
     if state.is_game_over || state.is_complete || state.transition_ticks > 0 {
         return;
     }

@@ -13,7 +13,7 @@ pub enum Key {
 }
 
 #[must_use]
-pub fn parse_key(key: KeyEvent) -> Key {
+pub const fn parse_key(key: KeyEvent) -> Key {
     match key.code {
         KeyCode::Char('q') => Key::Quit,
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Key::Quit,
@@ -36,7 +36,6 @@ pub fn poll_key(timeout: Duration) -> std::io::Result<Option<Key>> {
         let ev: Event = event::read()?;
         return match ev {
             Event::Key(key_event) => Ok(Some(parse_key(key_event))),
-            Event::Resize(_, _) => Ok(Some(Key::None)),
             _ => Ok(Some(Key::None)),
         };
     }

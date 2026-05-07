@@ -59,7 +59,7 @@ impl GameLoop for Snake {
 }
 
 impl Game for Snake {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Snake"
     }
 

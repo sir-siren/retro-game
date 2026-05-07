@@ -56,7 +56,7 @@ impl GameLoop for Runner {
 }
 
 impl Game for Runner {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Runner"
     }
 

@@ -2,11 +2,8 @@ use crate::engine::renderer::Buffer;
 use crate::games::dino::state::{DinoObstacleKind, DinoState};
 
 const DINO_STAND: [&str; 3] = [" ▄██", "████", " ██ "];
-
 const DINO_DUCK: [&str; 2] = ["      ", "▄█████"];
-
 const DINO_JUMP: [&str; 3] = [" ▄██", "████", "▀  ▀"];
-
 const BIRD_FRAME_A: [&str; 2] = ["/  ", " ══"];
 const BIRD_FRAME_B: [&str; 2] = ["    ", "╲══"];
 
@@ -34,8 +31,6 @@ fn draw_ground(state: &DinoState, buffer: &mut Buffer) {
     for x in 0..state.bounds.width {
         let pattern_x = (x + scroll) % 4;
         let ch = match pattern_x {
-            0 => '▁',
-            1 => '▁',
             2 => '▂',
             _ => '▁',
         };
@@ -44,7 +39,7 @@ fn draw_ground(state: &DinoState, buffer: &mut Buffer) {
 }
 
 fn draw_clouds(state: &DinoState, buffer: &mut Buffer) {
-    let cloud_offset = (state.tick / 3) as u16;
+    let cloud_offset = u16::try_from(state.tick / 3).unwrap_or(u16::MAX);
     let cloud_positions: [(u16, u16); 3] = [
         (20_u16.wrapping_sub(cloud_offset % 60), 3),
         (50_u16.wrapping_sub(cloud_offset % 80), 2),
@@ -93,7 +88,8 @@ fn draw_obstacles(state: &DinoState, buffer: &mut Buffer) {
                     &BIRD_FRAME_B
                 };
                 for (i, line) in frames.iter().enumerate() {
-                    buffer.print(obs.col, stand + i as u16, line);
+                    let row = stand + u16::try_from(i).unwrap_or(0);
+                    buffer.print(obs.col, row, line);
                 }
             }
             DinoObstacleKind::HighBird => {
@@ -104,7 +100,7 @@ fn draw_obstacles(state: &DinoState, buffer: &mut Buffer) {
                     &BIRD_FRAME_B
                 };
                 for (i, line) in frames.iter().enumerate() {
-                    buffer.print(obs.col, row + i as u16, line);
+                    buffer.print(obs.col, row + u16::try_from(i).unwrap_or(0), line);
                 }
             }
         }
@@ -114,27 +110,25 @@ fn draw_obstacles(state: &DinoState, buffer: &mut Buffer) {
 fn draw_dino(state: &DinoState, buffer: &mut Buffer) {
     let col = 8u16;
 
-    if state.is_game_over {
-        let sprite = &DINO_STAND;
-        for (i, line) in sprite.iter().enumerate() {
-            buffer.print(col, state.dino_row + i as u16, line);
+    if state.status.is_game_over() {
+        for (i, line) in DINO_STAND.iter().enumerate() {
+            buffer.print(col, state.dino_row + u16::try_from(i).unwrap_or(0), line);
         }
         return;
     }
 
-    if state.is_ducking {
+    if state.status.is_ducking() {
         for (i, line) in DINO_DUCK.iter().enumerate() {
-            buffer.print(col, state.dino_row + i as u16, line);
+            buffer.print(col, state.dino_row + u16::try_from(i).unwrap_or(0), line);
         }
-    } else if state.is_jumping {
+    } else if state.status.is_jumping() {
         for (i, line) in DINO_JUMP.iter().enumerate() {
-            buffer.print(col, state.dino_row + i as u16, line);
+            buffer.print(col, state.dino_row + u16::try_from(i).unwrap_or(0), line);
         }
     } else {
         let step = (state.tick / 4) % 2;
-        let sprite = &DINO_STAND;
-        for (i, line) in sprite.iter().enumerate() {
-            buffer.print(col, state.dino_row + i as u16, line);
+        for (i, line) in DINO_STAND.iter().enumerate() {
+            buffer.print(col, state.dino_row + u16::try_from(i).unwrap_or(0), line);
         }
         if step == 0 {
             buffer.print(col + 1, state.dino_row + 2, "█ ");
@@ -145,7 +139,7 @@ fn draw_dino(state: &DinoState, buffer: &mut Buffer) {
 }
 
 fn draw_overlays(state: &DinoState, buffer: &mut Buffer) {
-    if state.is_game_over {
+    if state.status.is_game_over() {
         let cx = state.bounds.width / 2;
         let cy = state.bounds.height / 2;
 
