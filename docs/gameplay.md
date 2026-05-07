@@ -1,141 +1,98 @@
-# Gameplay Guide
+# Gameplay
 
-## General Controls
+## Controls (all games)
 
-| Key               | Action                        |
-| ----------------- | ----------------------------- |
-| `Q`               | Quit current game / exit menu |
-| `Ctrl+C`          | Force quit                    |
-| Arrow keys / WASD | Directional input             |
-| `Space` / `Enter` | Action / confirm              |
-| `1-5`             | Menu selection                |
+| Key | Action |
+|-----|--------|
+| `Q` | Quit to menu |
+| `Ctrl+C` | Force quit |
+| `1–5` | Menu selection |
 
 ---
 
-## Game 1: Runner (Highway Dodger)
+## Runner
 
-### Concept
+You're a car on a 4-lane highway. Traffic comes from the right. You control lane and speed.
 
-You drive a car on a 4-lane highway. Oncoming traffic approaches from the right. Dodge between lanes to survive. The faster you drive, the higher your score multiplier — but obstacles arrive faster too.
+**HUD:** score top-left, speed (mph) top-right.
 
-### HUD
+**How it works:**
+- Switch lanes with `↑`/`↓`
+- Increase speed with `→`/`Space`, decrease with `←`
+- Score accumulates every 10 ticks proportional to speed
+- Level increases every 500 points — obstacles spawn faster and sometimes two at once
 
-- **Top Left**: `Score: <value>` — Your accumulated points
-- **Top Right**: `<value>mph` — Your current speed
+**Death:** any contact with a traffic car.
 
-### Mechanics
-
-- **Lanes**: 4 horizontal lanes separated by dashed lines
-- **Movement**: Switch lanes with Up/Down
-- **Speed**: Increase speed with Right/Space, decrease with Left
-- **Collision**: Any contact with an oncoming car = instant game over
-- **Scoring**: Points awarded every 10 ticks, proportional to your speed
-
-### Strategy
-
-- Start slow, learn the lane patterns
-- Speed up gradually as you gain confidence
-- Watch for double-spawns at higher levels — two cars in different lanes simultaneously
+**Tips:** don't floor it immediately. At level 3+ double-spawns start appearing — two cars in different lanes at the same time. Moderate speed gives you more reaction time than it costs in score.
 
 ---
 
-## Game 2: Bricks (Breakout)
+## Bricks
 
-### Concept
+Standard Breakout. Clear all bricks to advance. 5 levels.
 
-Classic breakout: destroy all bricks by bouncing a ball off your paddle. Clear all bricks to advance to the next level. 5 levels total.
+**HUD:** score top-left, remaining lives (`♥♥♥`) top-right.
 
-### HUD
+**How it works:**
+- Ball bounces off walls, ceiling, paddle, and bricks
+- Normal bricks (`▓▓▓▓`) take 1 hit
+- Armored bricks (`████`) take 2 hits, appear from level 3 onward
+- Ball speed scales with level
+- Lose a life when the ball falls below the paddle
+- 3 lives total
 
-- **Top Left**: `Score: <value>`
-- **Top Right**: Hearts representing lives (`♥♥♥`)
+**Scoring:** 10 points per brick hit (armored bricks award points on each hit, not just on destruction).
 
-### Mechanics
-
-- **Paddle**: Moves left/right at the bottom of the screen
-- **Ball**: Bounces off walls, paddle, and bricks
-- **Bricks**: Arranged in rows at the top. Hit a brick to damage it
-    - Normal bricks (▓▓▓▓): 1 hit to destroy
-    - Armored bricks (████): 2 hits to destroy (appear from level 3+)
-- **Lives**: 3 lives. Lose a life when the ball falls below the paddle
-- **Levels**: 5 levels with progressively more rows of bricks and faster ball speed
-
-### Scoring
-
-- 10 points per brick destroyed
-- Armored bricks award points on each hit AND on destruction
-
-### Strategy
-
-- Aim for the edges of the paddle to angle the ball toward brick clusters
-- Try to get the ball above the bricks for chain bounces
+**Tips:** angle your shots by hitting the ball with the edge of the paddle. Getting the ball above the brick rows causes chain bounces that clear multiple bricks per trip.
 
 ---
 
-## Game 3: Snake
+## Snake
 
-### Concept
+Eat food, grow longer, don't hit a wall or yourself.
 
-Control a growing snake. Eat food to score points and grow longer. Hit a wall or your own body and it's game over.
+**HUD:** score top-left, separator line below.
 
-### HUD
+**How it works:**
+- Head is `▣`, body is `█`, food is `□`
+- Eating food: +10 points, +1 segment, slight speed increase
+- Tick rate starts at 120ms and decreases by 2ms per food eaten (floor at 50ms)
+- Input is queued up to 2 moves deep so you can buffer turns
 
-- **Top Left**: `Score: <value>`
-- A solid horizontal line separates the HUD from the play area
+**Death:** hitting any wall or any segment of your own body.
 
-### Mechanics
-
-- **Snake**: Made of solid blocks (█), head marked with (▣)
-- **Food**: Hollow square (□) spawning randomly
-- **Growth**: Eating food adds one segment and awards 10 points
-- **Speed**: The snake accelerates slightly with each food eaten
-- **Death**: Hitting any wall boundary or your own body = game over
-- **Direction**: Cannot reverse direction (no 180° turns)
-
-### Scoring
-
-- 10 points per food item
-- Speed gradually increases as you eat — more risk, same reward
-
-### Strategy
-
-- Keep the snake looping in a predictable pattern
-- Don't get trapped in corners
-- As the snake gets long, plan your path several moves ahead
+**Tips:** the input queue means you can pre-buffer a turn before the snake reaches a corner. At high lengths, plan 3–4 moves ahead and keep the snake in a predictable coil pattern.
 
 ---
 
-## Game 4: Dino (Chrome T-Rex)
+## Dino
 
-### Concept
+Side-scrolling infinite runner. Obstacles come from the right. Survive as long as possible.
 
-An infinite side-scrolling runner inspired by Chrome's offline dinosaur game. Jump over cacti, duck under birds, and survive as long as possible.
+**HUD:** `HI XXXXX XXXXX` top-right (high score, current score). High score persists within the session.
 
-### HUD
+**How it works:**
+- Speed starts at 1 and increments every 200 ticks (cap: 6)
+- Score increments every 5 ticks
+- Level increases every 200 ticks (1–5), unlocking harder obstacle types at higher levels
 
-- **Top Right**: `HI <high_score> <current_score>` in Chrome style
+**Obstacles by level:**
 
-### Mechanics
+| Level | Obstacle types |
+|-------|---------------|
+| 1 | Small cactus (`│╥`) |
+| 2+ | Large cactus (`│┤╥`), double cactus, high bird |
+| 3+ | Low bird (`╲══`) — requires duck |
 
-- **Running**: The dino runs automatically. Speed increases over time
-- **Jumping**: Press Up/Space to jump over ground obstacles
-- **Ducking**: Hold Down to duck under low-flying birds
-- **Obstacles**:
-    - Small Cactus (│╥): Short, jump over
-    - Large Cactus (│┤╥): Tall, jump over
-    - Double Cactus: Two cacti side by side, jump over
-    - Low Bird (╲══): At head height, duck under
-    - High Bird: Above dino, no action needed (decoration)
-- **Death**: Any collision = instant game over
-- **Clouds**: Decorative clouds scroll in the background
+**Controls:**
+- `↑` / `W` / `Space` — jump (can't jump while ducking)
+- `↓` / `S` — duck (hold to stay ducked; releasing stands back up)
 
-### Scoring
+**Death:** any hitbox overlap with an obstacle.
 
-- 1 point every 5 ticks
-- Speed automatically increases every 200 ticks
-
-### Strategy
-
-- Time your jumps — don't jump too early or you'll land on the obstacle
-- Duck early for birds — ducking has no cooldown
-- At high speeds, rely on muscle memory and react to patterns
+**Tips:**
+- Low birds are at head height — duck early, the hitbox is unforgiving
+- At speed 5+ you're reacting more than planning. Learn the visual rhythm
+- High birds are decoration, you don't need to do anything
+- Double cacti have a wider hitbox than they look — jump early

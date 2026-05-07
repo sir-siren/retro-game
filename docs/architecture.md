@@ -2,94 +2,117 @@
 
 ## Overview
 
-Terminal Arcade is a monolithic Rust binary containing four arcade games sharing a common engine. The architecture follows a strict separation of concerns: the engine handles terminal I/O, input, and rendering, while each game module contains only pure game logic and state.
+One binary. Four games. A shared engine. No shared state between games — each game owns its own state struct and the engine drives all of them through the same two traits.
 
-## Module Dependency Graph
+The engine handles terminal I/O, input translation, and the game loop. The games handle everything else: state, logic, collision, rendering. Neither side knows the other's internals.
+
+## Module Layout
 
 ```
-main.rs
-├── menu.rs (game selection and routing)
+src/
+├── main.rs               entry point, raw mode setup, panic hook
+├── menu.rs               game selection, routing, menu rendering
 ├── engine/
-│   ├── input.rs     (keypress abstraction)
-│   ├── loop_.rs     (tick-based game loop driver)
-│   ├── renderer.rs  (double-buffered character grid)
-│   └── terminal.rs  (terminal size and screen clearing)
+│   ├── input.rs          crossterm events → Key enum
+│   ├── loop_.rs          tick-based game loop, GameLoop trait
+│   ├── renderer.rs       double-buffered character grid
+│   └── terminal.rs       viewport size, screen clear
 ├── games/
-│   ├── rand.rs      (shared LCG random number generator)
-│   ├── runner/      (Highway Dodger - 4-lane traffic)
-│   │   ├── mod.rs   (GameLoop + Game trait impl)
-│   │   ├── state.rs (pure data model)
-│   │   ├── logic.rs (state transitions, collision, spawning)
-│   │   └── render.rs(buffer drawing)
-│   ├── bricks/      (Breakout clone)
-│   ├── snake/       (Classic snake)
-│   └── dino/        (Chrome T-Rex runner)
+│   ├── rand.rs           LCG PRNG (no external dependency)
+│   ├── runner/           highway dodger
+│   ├── bricks/           breakout
+│   ├── snake/            snake
+│   └── dino/             chrome t-rex
 └── types/
-    ├── error.rs     (AppError, GameError)
-    ├── game.rs      (Game trait, GameResult enum)
-    └── geometry.rs  (Vec2, TerminalSize, Direction, Score, etc.)
+    ├── error.rs          AppError, GameError
+    ├── game.rs           Game trait, GameResult
+    └── geometry.rs       Vec2, TerminalSize, Direction, Score, Level, Lives
 ```
 
-## Engine Architecture
-
-### Double-Buffered Renderer (`renderer.rs`)
-
-The renderer maintains two character grids: `cells` (current frame) and `prev` (last flushed frame). On each `flush()`, only cells that differ from the previous frame are written to stdout, minimizing terminal I/O and eliminating flicker.
+Each game module follows the same four-file pattern:
 
 ```
-Game Logic → buffer.clear() → buffer.place()/print() → buffer.flush()
-                                                            ↓
-                                              Only changed cells → stdout
+games/<name>/
+├── mod.rs      GameLoop + Game trait impls, wires everything together
+├── state.rs    pure data structs, no logic
+├── logic.rs    state mutation — input, physics, collision, spawning
+└── render.rs   reads state, writes to Buffer
 ```
 
-### Game Loop (`loop_.rs`)
+This keeps logic testable without a terminal and rendering free of business logic.
 
-All games share a single loop driver via the `GameLoop` trait:
+## Renderer
+
+`Buffer` holds two `Vec<char>` grids of identical size: `cells` (current frame) and `prev` (last flushed frame). On `flush()` it walks both grids simultaneously and emits cursor moves + character writes only for cells that differ. The result is minimal stdout writes per frame regardless of screen size.
 
 ```
-loop {
-    poll_key()         → handle_input()
-    tick()             → advance simulation
-    status()           → check for game over
-    render()           → draw to buffer
-    flush()            → diff to terminal
-    sleep(remaining)   → maintain frame rate
+game.render(&mut buffer)   // game writes chars into cells[]
+buffer.flush(...)          // diff against prev[], write only changes
+                           // then swap prev = cells
+```
+
+Frame rate is ~30fps (33ms tick). The loop measures elapsed time and sleeps only the remainder, so the tick rate is stable under light load.
+
+## Game Loop
+
+`run_loop<G: GameLoop>` drives any game that implements `GameLoop`:
+
+```rust
+pub trait GameLoop {
+    fn resize(&mut self, size: TerminalSize);
+    fn handle_input(&mut self, key: Key);
+    fn tick(&mut self);
+    fn render(&self, buffer: &mut Buffer);
+    fn status(&self) -> Option<GameResult>;
 }
 ```
 
-Each game runs at approximately 30fps (33ms tick interval).
+Each iteration: poll for input → handle it → tick → check status → render → flush → sleep.
 
-### Input System (`input.rs`)
+`Key::Quit` is handled by the loop itself before reaching the game. Terminal resize is detected on `Key::None` (the timeout path) and propagated via `resize()`.
 
-Raw crossterm events are translated into semantic `Key` variants: `Dir(Direction)`, `Action`, `Quit`, `Number(u8)`, or `None`. This abstraction keeps game logic completely decoupled from the terminal input layer.
+## Input
 
-## Game Module Pattern
+Raw crossterm key events are translated into a small semantic enum before reaching any game code:
 
-Every game follows the same 4-file pattern:
-
-| File        | Purpose                                                          |
-| ----------- | ---------------------------------------------------------------- |
-| `mod.rs`    | Implements `GameLoop` + `Game` traits, wires state/logic/render  |
-| `state.rs`  | Pure data structures with no logic beyond constructors           |
-| `logic.rs`  | All state mutation: input handling, physics, collision, spawning |
-| `render.rs` | Projects state onto `Buffer` using character placement           |
-
-This pattern enforces:
-
-- **Single Responsibility**: State, logic, and rendering never mix
-- **Testability**: Logic functions take `&mut State` and can be tested without a terminal
-- **Dependency Inversion**: Games depend on `Buffer` (abstraction), not stdout (concretion)
-
-## Data Flow
-
+```rust
+pub enum Key {
+    Quit,
+    Dir(Direction),  // Up / Down / Left / Right
+    Action,          // Space or Enter
+    Number(u8),      // 1–9
+    None,            // timeout or unrecognised key
+}
 ```
-Terminal Events → Input Parser → Key enum
-                                    ↓
-                              Game.handle_input()
-                                    ↓
-                              Game.tick() → mutates state
-                                    ↓
-                              Game.render() → writes to Buffer
-                                    ↓
-                              Buffer.flush() → diffed output to terminal
+
+Games never import crossterm. If the terminal layer changes, only `input.rs` needs updating.
+
+## Game Trait
+
+`Game` is what `menu.rs` calls. It has two methods:
+
+```rust
+pub trait Game {
+    fn name(&self) -> &str;
+    fn run(&mut self, viewport: TerminalSize) -> anyhow::Result<GameResult>;
+}
 ```
+
+`run()` calls `run_loop` internally. The menu doesn't know or care what's inside.
+
+## Error Handling
+
+Two error types:
+
+- `GameError` — I/O errors that happen inside a game loop (crossterm calls, terminal queries). Propagated with `?`.
+- `AppError` — top-level wrapper, converts from both `GameError` and `io::Error`.
+
+`anyhow::Result` is used at the `Game::run` boundary so the menu can handle game errors without importing game-internal types.
+
+## PRNG
+
+`games/rand.rs` exports a single `const fn fast_rand(seed: u64) -> u64` — a xorshift64 variant. Used by obstacle spawners in Runner and Dino. No `rand` crate, no thread-local state, fully deterministic per seed. Each game derives its seed from tick count XOR'd with the current score so patterns don't repeat the same way each run.
+
+## Release Profile
+
+The `Cargo.toml` release profile uses `opt-level = "z"`, full LTO, single codegen unit, stripped symbols, and `panic = "abort"`. The final binary is small enough to distribute as a single file with no runtime dependencies.

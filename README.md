@@ -1,6 +1,6 @@
 # 🕹️ Terminal Arcade
 
-A retro terminal arcade suite built in Rust - four classic games with a monochrome OLED aesthetic, rendered directly in your terminal using raw TTY mode.
+Four classic arcade games in your terminal. No GPU. No browser. No Electron. Just Rust, raw TTY mode, and Unicode box-drawing characters.
 
 ```
 ╔═══════════════════════╗
@@ -24,114 +24,81 @@ A retro terminal arcade suite built in Rust - four classic games with a monochro
 
 ## Games
 
-### 🚗 Runner (Highway Dodger)
+### 🚗 Runner
 
-A 4-lane traffic avoidance game. Dodge oncoming cars while managing your speed. The faster you go, the higher your score - but the harder it gets.
+4-lane highway dodger. Oncoming traffic. Speed is your multiplier and your problem.
 
-| Control             | Action             |
-| ------------------- | ------------------ |
-| `↑` / `W`           | Move up one lane   |
-| `↓` / `S`           | Move down one lane |
-| `→` / `D` / `Space` | Speed up           |
-| `←` / `A`           | Slow down          |
-| `Q`                 | Quit to menu       |
+| Key                 | Action     |
+| ------------------- | ---------- |
+| `↑` / `W`           | Lane up    |
+| `↓` / `S`           | Lane down  |
+| `→` / `D` / `Space` | Accelerate |
+| `←` / `A`           | Brake      |
+| `Q`                 | Menu       |
 
-### 🧱 Bricks (Breakout)
+### 🧱 Bricks
 
-Classic brick-breaking arcade game. Destroy all bricks to advance through 5 levels. Lives shown as hearts (♥♥♥).
+Breakout clone. 5 levels. Armored bricks appear at level 3. Lives shown as `♥♥♥`.
 
-| Control   | Action            |
-| --------- | ----------------- |
-| `←` / `A` | Move paddle left  |
-| `→` / `D` | Move paddle right |
-| `Q`       | Quit to menu      |
+| Key       | Action       |
+| --------- | ------------ |
+| `←` / `A` | Paddle left  |
+| `→` / `D` | Paddle right |
+| `Q`       | Menu         |
 
 ### 🐍 Snake
 
-Navigate the snake to eat food (□) and grow. Hit a wall or yourself and it's game over. Speed increases as you eat.
+Eat food, grow, don't die. Speed increases as you eat. Classic rules.
 
-| Control   | Action       |
-| --------- | ------------ |
-| `↑` / `W` | Turn up      |
-| `↓` / `S` | Turn down    |
-| `←` / `A` | Turn left    |
-| `→` / `D` | Turn right   |
-| `Q`       | Quit to menu |
+| Key                | Action |
+| ------------------ | ------ |
+| `↑ ↓ ← →` / `WASD` | Turn   |
+| `Q`                | Menu   |
 
-### 🦖 Dino (Chrome T-Rex)
+### 🦖 Dino
 
-An infinite runner inspired by Chrome's offline dinosaur game. Jump over cacti, duck under birds, survive as long as you can.
+Chrome T-Rex clone. Jump cacti, duck birds, survive as long as possible.
 
-| Control             | Action       |
-| ------------------- | ------------ |
-| `↑` / `W` / `Space` | Jump         |
-| `↓` / `S`           | Duck (hold)  |
-| `Q`                 | Quit to menu |
+| Key                 | Action      |
+| ------------------- | ----------- |
+| `↑` / `W` / `Space` | Jump        |
+| `↓` / `S`           | Duck (hold) |
+| `Q`                 | Menu        |
 
-## Installation
+---
 
-### From Releases
+## Install
 
-Download the latest binary for your platform from the [Releases](../../releases) page:
+### Build from source
 
-| Platform              | Binary                      |
-| --------------------- | --------------------------- |
-| Linux x86_64          | `arcade-linux-x86_64`       |
-| Linux x86_64 (static) | `arcade-linux-x86_64-musl`  |
-| Linux ARM64 (Termux)  | `arcade-linux-aarch64`      |
-| macOS Intel           | `arcade-macos-x86_64`       |
-| macOS Apple Silicon   | `arcade-macos-aarch64`      |
-| Windows               | `arcade-windows-x86_64.exe` |
+Requires Rust 1.85+.
 
 ```bash
-chmod +x arcade-linux-x86_64
-./arcade-linux-x86_64
-```
-
-### Build from Source
-
-Requires Rust 1.85.0 or later.
-
-```bash
-git clone https://github.com/yourusername/terminal-arcade.git
+git clone https://github.com/sir-siren/terminal-arcade.git
 cd terminal-arcade
 RUSTFLAGS="-C target-cpu=native" cargo build --release
 ./target/release/arcade
 ```
 
-### Termux (Android)
+---
 
-```bash
-pkg install rust
-git clone https://github.com/yourusername/terminal-arcade.git
-cd terminal-arcade
-cargo build --release
-./target/release/arcade
-```
+## Stack
 
-## Features
+- [`crossterm`](https://github.com/crossterm-rs/crossterm) — cross-platform raw terminal I/O
+- [`thiserror`](https://github.com/dtolnay/thiserror) — error types
+- [`anyhow`](https://github.com/dtolnay/anyhow) — error propagation
 
-- Pure terminal rendering - no external TUI frameworks
-- Double-buffered diff-based renderer for flicker-free 30fps gameplay
-- Monochrome OLED retro aesthetic with Unicode box-drawing characters
-- Cross-platform: Windows, macOS, Linux, and Android (Termux)
-- Zero dependencies beyond `crossterm`, `anyhow`, and `thiserror`
-- Optimized release builds with LTO and stripped symbols
+No TUI framework. The renderer is a hand-rolled double-buffered character grid that only writes cells that changed since the last frame. 30fps, flicker-free.
 
-## Architecture
-
-See the [docs](./docs/) directory for detailed documentation:
-
-- [Architecture](./docs/architecture.md) - Module structure and data flow
-- [Building](./docs/building.md) - Build instructions for all platforms
-- [Gameplay](./docs/gameplay.md) - Detailed mechanics and scoring
+---
 
 ## Requirements
 
-- Terminal with Unicode support (UTF-8)
-- Minimum terminal size: 60×20 characters
-- Recommended: 80×24 or larger
+- UTF-8 terminal with Unicode support
+- Minimum 60×20 terminal size (80×24 recommended)
+
+---
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) for details.
+MIT — see [LICENSE](./LICENSE).
