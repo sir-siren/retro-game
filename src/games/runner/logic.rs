@@ -14,6 +14,7 @@ pub fn tick(state: &mut RunnerState) {
     }
 
     state.tick = state.tick.wrapping_add(1);
+    state.road_scroll = state.road_scroll.wrapping_add(state.speed / 20);
 
     if state.tick % 10 == 0 {
         state.score.0 = state.score.0.saturating_add(u32::from(state.speed) / 10);
@@ -97,7 +98,6 @@ fn spawn_obstacles(state: &mut RunnerState) {
     let r = fast_rand(state.tick ^ u64::from(state.score.0));
     #[allow(clippy::cast_possible_truncation)]
     let lane = (r % u64::from(RunnerState::lane_count())) as u8;
-
     let width = if r % 5 == 0 { 7 } else { 5 };
 
     state.obstacles.push(TrafficCar {
@@ -132,13 +132,10 @@ mod tests {
             height: 24,
         });
         assert_eq!(state.player_lane, 1);
-
         handle_input(&mut state, Key::Dir(Direction::Up));
         assert_eq!(state.player_lane, 0);
-
         handle_input(&mut state, Key::Dir(Direction::Up));
-        assert_eq!(state.player_lane, 0);
-
+        assert_eq!(state.player_lane, 0); // clamped
         handle_input(&mut state, Key::Dir(Direction::Down));
         assert_eq!(state.player_lane, 1);
     }
@@ -153,7 +150,6 @@ mod tests {
             handle_input(&mut state, Key::Dir(Direction::Right));
         }
         assert_eq!(state.speed, MAX_SPEED);
-
         for _ in 0..100 {
             handle_input(&mut state, Key::Dir(Direction::Left));
         }

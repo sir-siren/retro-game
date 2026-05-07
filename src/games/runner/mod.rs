@@ -2,6 +2,7 @@ pub mod logic;
 pub mod render;
 pub mod state;
 
+use crate::engine::ArcadeTerminal;
 use crate::engine::input::Key;
 use crate::engine::loop_::{GameLoop, run_loop};
 use crate::engine::renderer::Buffer;
@@ -60,8 +61,7 @@ impl Game for Runner {
         "Runner"
     }
 
-    fn run(&mut self, viewport: TerminalSize) -> anyhow::Result<GameResult> {
-        let res: GameResult = run_loop(self, 33, viewport)?;
-        Ok(res)
+    fn run(&mut self, terminal: &mut ArcadeTerminal) -> anyhow::Result<GameResult> {
+        Ok(run_loop(self, 33, terminal)?)
     }
 }

@@ -1,75 +1,85 @@
-use std::io::stdout;
 use std::time::Duration;
 
-use crossterm::terminal::size;
+use crossterm::event::{self, Event};
 
-use crate::engine::input::{Key, poll_key};
+use crate::engine::ArcadeTerminal;
+use crate::engine::input::{Key, parse_key};
 use crate::engine::renderer::Buffer;
-use crate::engine::terminal::{clear_screen, game_viewport};
 use crate::games::bricks::Bricks;
 use crate::games::dino::Dino;
 use crate::games::runner::Runner;
 use crate::games::snake::Snake;
-use crate::types::error::GameError;
 use crate::types::game::Game;
 use crate::types::geometry::TerminalSize;
 
-pub fn run_menu() -> anyhow::Result<()> {
-    let mut out: std::io::Stdout = stdout();
-
-    clear_screen()?;
-
-    let mut viewport: TerminalSize = game_viewport()?;
-    let mut buffer: Buffer = Buffer::new(viewport);
-    let mut needs_redraw: bool = true;
+pub fn run_menu(terminal: &mut ArcadeTerminal) -> anyhow::Result<()> {
+    let mut viewport = current_size()?;
+    let mut buffer = Buffer::new(viewport);
+    let mut needs_redraw = true;
 
     loop {
-        let new_vp: TerminalSize = game_viewport()?;
+        let new_vp = current_size()?;
         if new_vp != viewport {
             viewport = new_vp;
             buffer = Buffer::new(viewport);
+            terminal.clear()?;
             needs_redraw = true;
         }
 
         if needs_redraw {
             buffer.clear();
             draw_menu(&mut buffer, viewport);
-            let (raw_w, raw_h) = size()?;
-            buffer.flush(raw_w, raw_h, &mut out)?;
+            terminal.draw(|frame| {
+                let area = frame.area();
+                buffer.render_to(frame.buffer_mut(), area);
+            })?;
             needs_redraw = false;
         }
 
-        let Some(key) = poll_key(Duration::from_millis(50))? else {
+        if !event::poll(Duration::from_millis(50))? {
             continue;
-        };
+        }
 
-        match key {
-            Key::Number(1) => {
-                clear_screen()?;
-                Runner::new(viewport).run(viewport)?;
-                redraw_after_game(&mut buffer, &mut out, viewport)?;
+        match event::read()? {
+            Event::Key(key_event) => {
+                match parse_key(key_event) {
+                    Key::Number(1) => {
+                        terminal.clear()?;
+                        Runner::new(viewport).run(terminal)?;
+                        terminal.clear()?;
+                        needs_redraw = true;
+                    }
+                    Key::Number(2) => {
+                        terminal.clear()?;
+                        Bricks::new(viewport).run(terminal)?;
+                        terminal.clear()?;
+                        needs_redraw = true;
+                    }
+                    Key::Number(3) => {
+                        terminal.clear()?;
+                        Snake::new(viewport).run(terminal)?;
+                        terminal.clear()?;
+                        needs_redraw = true;
+                    }
+                    Key::Number(4) => {
+                        terminal.clear()?;
+                        Dino::new(viewport).run(terminal)?;
+                        terminal.clear()?;
+                        needs_redraw = true;
+                    }
+                    Key::Number(5) | Key::Quit => break,
+                    _ => {}
+                }
+            }
+            Event::Resize(w, h) => {
+                viewport = TerminalSize {
+                    width: w,
+                    height: h,
+                };
+                buffer = Buffer::new(viewport);
+                terminal.clear()?;
                 needs_redraw = true;
             }
-            Key::Number(2) => {
-                clear_screen()?;
-                Bricks::new(viewport).run(viewport)?;
-                redraw_after_game(&mut buffer, &mut out, viewport)?;
-                needs_redraw = true;
-            }
-            Key::Number(3) => {
-                clear_screen()?;
-                Snake::new(viewport).run(viewport)?;
-                redraw_after_game(&mut buffer, &mut out, viewport)?;
-                needs_redraw = true;
-            }
-            Key::Number(4) => {
-                clear_screen()?;
-                Dino::new(viewport).run(viewport)?;
-                redraw_after_game(&mut buffer, &mut out, viewport)?;
-                needs_redraw = true;
-            }
-            Key::Number(5) | Key::Quit => break,
-            Key::None => needs_redraw = true,
             _ => {}
         }
     }
@@ -77,18 +87,12 @@ pub fn run_menu() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn redraw_after_game(
-    buffer: &mut Buffer,
-    out: &mut impl std::io::Write,
-    viewport: TerminalSize,
-) -> Result<(), GameError> {
-    clear_screen()?;
-    *buffer = Buffer::new(viewport);
-    buffer.clear();
-    draw_menu(buffer, viewport);
-    let (raw_w, raw_h) = size()?;
-    buffer.flush(raw_w, raw_h, out)?;
-    Ok(())
+fn current_size() -> anyhow::Result<TerminalSize> {
+    let (w, h) = crossterm::terminal::size()?;
+    Ok(TerminalSize {
+        width: w,
+        height: h,
+    })
 }
 
 fn draw_menu(buffer: &mut Buffer, vp: TerminalSize) {

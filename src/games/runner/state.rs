@@ -18,6 +18,7 @@ pub struct RunnerState {
     pub is_game_over: bool,
     pub is_complete: bool,
     pub bounds: TerminalSize,
+    pub road_scroll: u16,
 }
 
 impl RunnerState {
@@ -33,6 +34,7 @@ impl RunnerState {
             is_game_over: false,
             is_complete: false,
             bounds,
+            road_scroll: 0,
         }
     }
 

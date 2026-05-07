@@ -1,9 +1,10 @@
-use std::io::stdout;
 use std::time::{Duration, Instant};
 
-use crate::engine::input::{Key, poll_key};
+use crossterm::event::{self, Event};
+
+use crate::engine::ArcadeTerminal;
+use crate::engine::input::{Key, parse_key};
 use crate::engine::renderer::Buffer;
-use crate::engine::terminal::game_viewport;
 use crate::types::error::GameError;
 use crate::types::game::GameResult;
 use crate::types::geometry::TerminalSize;
@@ -19,9 +20,13 @@ pub trait GameLoop {
 pub fn run_loop<G: GameLoop>(
     game: &mut G,
     tick_ms: u64,
-    mut viewport: TerminalSize,
+    terminal: &mut ArcadeTerminal,
 ) -> Result<GameResult, GameError> {
-    let mut out = stdout();
+    let initial = crossterm::terminal::size()?;
+    let mut viewport = TerminalSize {
+        width: initial.0,
+        height: initial.1,
+    };
     let mut buffer = Buffer::new(viewport);
     game.resize(viewport);
 
@@ -29,18 +34,29 @@ pub fn run_loop<G: GameLoop>(
         let frame_start = Instant::now();
         let tick_duration = Duration::from_millis(tick_ms);
 
-        if let Some(key) = poll_key(tick_duration)? {
-            match key {
-                Key::Quit => return Ok(GameResult::Quit),
-                Key::None => {
-                    let new_vp = game_viewport()?;
+        if event::poll(tick_duration)? {
+            match event::read()? {
+                Event::Key(key_event) => {
+                    let key = parse_key(key_event);
+                    match key {
+                        Key::Quit => return Ok(GameResult::Quit),
+                        Key::None => {}
+                        k => game.handle_input(k),
+                    }
+                }
+                Event::Resize(w, h) => {
+                    let new_vp = TerminalSize {
+                        width: w,
+                        height: h,
+                    };
                     if new_vp != viewport {
                         viewport = new_vp;
                         buffer = Buffer::new(viewport);
                         game.resize(viewport);
+                        terminal.clear()?;
                     }
                 }
-                k => game.handle_input(k),
+                _ => {}
             }
         }
 
@@ -53,8 +69,10 @@ pub fn run_loop<G: GameLoop>(
         buffer.clear();
         game.render(&mut buffer);
 
-        let (raw_w, raw_h) = crossterm::terminal::size()?;
-        buffer.flush(raw_w, raw_h, &mut out)?;
+        terminal.draw(|frame| {
+            let area = frame.area();
+            buffer.render_to(frame.buffer_mut(), area);
+        })?;
 
         let elapsed = frame_start.elapsed();
         if let Some(remaining) = tick_duration.checked_sub(elapsed) {

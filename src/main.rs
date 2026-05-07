@@ -9,24 +9,30 @@ pub mod types;
 use std::io::stdout;
 use std::panic;
 
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+};
 use crossterm::{cursor, execute};
+use ratatui::{Terminal, backend::CrosstermBackend};
 
 fn main() -> anyhow::Result<()> {
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
-        let _ = execute!(stdout(), cursor::Show);
+        let _ = execute!(stdout(), LeaveAlternateScreen, cursor::Show);
         let _ = disable_raw_mode();
         default_hook(info);
     }));
 
     enable_raw_mode()?;
-    execute!(stdout(), cursor::Hide)?;
+    execute!(stdout(), EnterAlternateScreen, cursor::Hide)?;
 
-    let result = menu::run_menu();
+    let backend = CrosstermBackend::new(stdout());
+    let mut terminal = Terminal::new(backend)?;
+    terminal.clear()?;
 
-    let _ = execute!(stdout(), cursor::Show);
-    let _ = disable_raw_mode();
+    let result = menu::run_menu(&mut terminal);
 
+    execute!(stdout(), LeaveAlternateScreen, cursor::Show)?;
+    disable_raw_mode()?;
     result
 }
