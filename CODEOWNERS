@@ -1,0 +1,35 @@
+# CODEOWNERS
+# Each line is a file pattern followed by one or more owners.
+# Owners are automatically requested for review when someone opens a pull request that changes matching files.
+# More info: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ─────────────────────────────────────────────────────────────
+# Main Source Code
+# ─────────────────────────────────────────────────────────────
+*                                               @sir-siren
+/src/                                           @sir-siren
+/docs/                                          @sir-siren
+
+# Root configuration and scripts
+/*.toml                                         @sir-siren
+/*.lock                                         @sir-siren
+/*.sqlite                                       @sir-siren
+/*.db                                           @sir-siren
+/.editorconfig                                  @sir-siren
+
+# ─────────────────────────────────────────────────────────────
+# CI/CD, Editor, and tooling configuration
+# ─────────────────────────────────────────────────────────────
+
+/.github/                                       @sir-siren
+/.vscode/                                       @sir-siren
+/.gitignore                                     @sir-siren
+
+# ─────────────────────────────────────────────────────────────
+# Community health files
+# ─────────────────────────────────────────────────────────────
+
+/*.md                                           @sir-siren
+/LICENSE                                        @sir-siren
+/CODEOWNERS                                     @sir-siren
+/CITATION.cff                                   @sir-siren

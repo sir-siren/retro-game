@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+title: Terminal Arcade
+message: >
+    If you use this software in your work, please cite it using the information below.
+type: software
+authors:
+  - alias: sir-siren
+version: 1.2.0
+date-released: "2026-05-13"
+license: MIT
+repository-code: https://github.com/sir-siren/retro-game
+abstract: >
+    A collection of 9 classic arcade games built in Rust for the terminal. It uses Crossterm and Ratatui for rendering, alongside SQLite for persistent high-score tracking.
+keywords:
+  - game
+  - arcade
+  - terminal
+  - tui
+  - rust
+  - sqlite
+  - ratatui
