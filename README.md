@@ -4,14 +4,37 @@ Nine classic terminal games in one Rust binary. Terminal Arcade uses raw
 keyboard input through `crossterm`, styled terminal rendering through `ratatui`,
 and a small SQLite database for high scores.
 
-```
-TERMINAL ARCADE
+```sh
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                  TERMINAL ARCADE                                                 │
+│                                                                                                                  │
+│                                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│> Runner  HI: 1411                                                                                                │
+│  Bricks  HI: 40                                                                                                  │
+│  Snake  HI: 150                                                                                                  │
+│  Dino  HI: 412                                                                                                   │
+│  Tetris  HI: ---                                                                                                 │
+│  Pong  HI: ---                                                                                                   │
+│  Space Invaders  HI: 820                                                                                         │
+│  Minesweeper  HI: 33                                                                                             │
+│  Flappy Bird  HI: ---                                                                                            │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+│                                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                               [Up/Down] Navigate  [Enter] Play  [1-9] Quick  [Q] Quit
 
-1 Runner              6 Pong
-2 Bricks              7 Space Invaders
-3 Snake               8 Minesweeper
-4 Dino                9 Flappy Bird
-5 Tetris
+
 ```
 
 ## Games
