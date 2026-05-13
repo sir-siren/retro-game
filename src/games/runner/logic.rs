@@ -95,10 +95,10 @@ fn spawn_obstacles(state: &mut RunnerState) {
         return;
     }
 
-    let r = fast_rand(state.tick ^ u64::from(state.score.0));
+    let rand_value = fast_rand(state.tick ^ u64::from(state.score.0));
     #[allow(clippy::cast_possible_truncation)]
-    let lane = (r % u64::from(RunnerState::lane_count())) as u8;
-    let width = if r % 5 == 0 { 7 } else { 5 };
+    let lane = (rand_value % u64::from(RunnerState::lane_count())) as u8;
+    let width = if rand_value % 5 == 0 { 7 } else { 5 };
 
     state.obstacles.push(TrafficCar {
         lane,
@@ -106,13 +106,13 @@ fn spawn_obstacles(state: &mut RunnerState) {
         width,
     });
 
-    if state.level.0 >= 3 && r % 3 == 0 {
-        let r2 = fast_rand(state.tick.wrapping_mul(7));
+    if state.level.0 >= 3 && rand_value % 3 == 0 {
+        let second_rand = fast_rand(state.tick.wrapping_mul(7));
         #[allow(clippy::cast_possible_truncation)]
-        let lane2 = (r2 % u64::from(RunnerState::lane_count())) as u8;
-        if lane2 != lane {
+        let second_lane = (second_rand % u64::from(RunnerState::lane_count())) as u8;
+        if second_lane != lane {
             state.obstacles.push(TrafficCar {
-                lane: lane2,
+                lane: second_lane,
                 col: state.bounds.width.saturating_sub(2),
                 width: 5,
             });
@@ -125,27 +125,28 @@ mod tests {
     use super::*;
     use crate::types::geometry::TerminalSize;
 
-    #[test]
-    fn lane_switching() {
-        let mut state = RunnerState::new(TerminalSize {
+    fn default_viewport() -> TerminalSize {
+        TerminalSize {
             width: 80,
             height: 24,
-        });
+        }
+    }
+
+    #[test]
+    fn lane_change_moves_player_and_clamps_at_boundaries() {
+        let mut state = RunnerState::new(default_viewport());
         assert_eq!(state.player_lane, 1);
         handle_input(&mut state, Key::Dir(Direction::Up));
         assert_eq!(state.player_lane, 0);
         handle_input(&mut state, Key::Dir(Direction::Up));
-        assert_eq!(state.player_lane, 0); // clamped
+        assert_eq!(state.player_lane, 0); // clamped at top
         handle_input(&mut state, Key::Dir(Direction::Down));
         assert_eq!(state.player_lane, 1);
     }
 
     #[test]
-    fn speed_bounds() {
-        let mut state = RunnerState::new(TerminalSize {
-            width: 80,
-            height: 24,
-        });
+    fn speed_clamps_at_min_and_max_values() {
+        let mut state = RunnerState::new(default_viewport());
         for _ in 0..100 {
             handle_input(&mut state, Key::Dir(Direction::Right));
         }
@@ -157,11 +158,8 @@ mod tests {
     }
 
     #[test]
-    fn collision_detection() {
-        let mut state = RunnerState::new(TerminalSize {
-            width: 80,
-            height: 24,
-        });
+    fn obstacle_in_player_lane_triggers_game_over() {
+        let mut state = RunnerState::new(default_viewport());
         state.player_lane = 2;
         state.obstacles.push(TrafficCar {
             lane: 2,

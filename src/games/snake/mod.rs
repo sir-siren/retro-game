@@ -12,6 +12,7 @@ use crate::types::geometry::TerminalSize;
 
 pub struct Snake {
     state: SnakeState,
+    retry_requested: bool,
 }
 
 impl Snake {
@@ -19,6 +20,7 @@ impl Snake {
     pub fn new(viewport: TerminalSize) -> Self {
         Self {
             state: SnakeState::new(viewport),
+            retry_requested: false,
         }
     }
 }
@@ -36,8 +38,12 @@ impl GameLoop for Snake {
     }
 
     fn handle_input(&mut self, key: Key) {
-        if self.state.is_game_over && key != Key::None {
-            self.state.is_complete = true;
+        if self.state.is_game_over {
+            match key {
+                Key::Retry | Key::Action => self.retry_requested = true,
+                Key::Quit => self.state.is_complete = true,
+                _ => {}
+            }
         } else {
             logic::handle_input(&mut self.state, key);
         }
@@ -48,7 +54,12 @@ impl GameLoop for Snake {
     }
 
     fn status(&self) -> Option<GameResult> {
-        if self.state.is_complete {
+        if self.retry_requested {
+            Some(GameResult::Retry {
+                score: self.state.score,
+                level: self.state.level,
+            })
+        } else if self.state.is_complete {
             Some(GameResult::GameOver {
                 score: self.state.score,
                 level: self.state.level,

@@ -6,43 +6,36 @@ use crate::engine::ArcadeTerminal;
 use crate::engine::input::Key;
 use crate::engine::loop_::{GameLoop, run_loop};
 use crate::engine::renderer::Buffer;
-use crate::games::bricks::state::BricksState;
+use crate::games::tetris::state::TetrisState;
 use crate::types::game::{Game, GameResult};
 use crate::types::geometry::TerminalSize;
 
-pub struct Bricks {
-    state: BricksState,
+pub struct Tetris {
+    state: TetrisState,
     retry_requested: bool,
 }
 
-impl Bricks {
+impl Tetris {
     #[must_use]
-    pub fn new(viewport: TerminalSize) -> Self {
+    pub const fn new(viewport: TerminalSize) -> Self {
         Self {
-            state: BricksState::new(viewport),
+            state: TetrisState::new(viewport),
             retry_requested: false,
         }
     }
 }
 
-impl GameLoop for Bricks {
+impl GameLoop for Tetris {
     fn resize(&mut self, size: TerminalSize) {
         self.state.bounds = size;
-        let p_max = size.width.saturating_sub(self.state.paddle_width);
-        if self.state.paddle_col > p_max {
-            self.state.paddle_col = p_max;
-        }
     }
 
     fn tick(&mut self) {
-        if self.state.is_game_over && self.state.lives.0 == 0 {
-            return;
-        }
         logic::tick(&mut self.state);
     }
 
     fn handle_input(&mut self, key: Key) {
-        if self.state.is_game_over || self.state.is_complete {
+        if self.state.is_game_over {
             match key {
                 Key::Retry | Key::Action => self.retry_requested = true,
                 Key::Quit => self.state.is_complete = true,
@@ -64,26 +57,19 @@ impl GameLoop for Bricks {
                 level: self.state.level,
             })
         } else if self.state.is_complete {
-            if self.state.is_game_over {
-                Some(GameResult::GameOver {
-                    score: self.state.score,
-                    level: self.state.level,
-                })
-            } else {
-                Some(GameResult::Complete {
-                    score: self.state.score,
-                    level: self.state.level,
-                })
-            }
+            Some(GameResult::GameOver {
+                score: self.state.score,
+                level: self.state.level,
+            })
         } else {
             None
         }
     }
 }
 
-impl Game for Bricks {
+impl Game for Tetris {
     fn name(&self) -> &'static str {
-        "Bricks"
+        "Tetris"
     }
 
     fn run(&mut self, terminal: &mut ArcadeTerminal) -> anyhow::Result<GameResult> {

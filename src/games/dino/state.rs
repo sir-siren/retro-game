@@ -4,14 +4,14 @@ use crate::types::geometry::{Level, Score, TerminalSize};
 pub enum DinoObstacleKind {
     SmallCactus,
     LargeCactus,
-    DoubleCactus,
+    CactusCluster,
     LowBird,
     HighBird,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DinoObstacle {
-    pub col: u16,
+    pub col: f32,
     pub kind: DinoObstacleKind,
 }
 
@@ -48,36 +48,38 @@ impl DinoStatus {
 
 #[derive(Debug, Clone)]
 pub struct DinoState {
-    pub dino_row: u16,
+    pub dino_y: f32,
     pub status: DinoStatus,
-    pub jump_velocity: i16,
+    pub velocity_y: f32,
     pub obstacles: Vec<DinoObstacle>,
     pub score: Score,
     pub high_score: u32,
     pub level: Level,
-    pub speed: u16,
+    pub speed: f32,
     pub tick: u64,
-    pub hurt_ticks: u16,
     pub bounds: TerminalSize,
-    pub ground_scroll: u16,
+    pub ground_scroll: f32,
+    pub score_progress: f32,
+    pub spawn_cooldown: u16,
 }
 
 impl DinoState {
     #[must_use]
     pub fn new(bounds: TerminalSize) -> Self {
         Self {
-            dino_row: Self::stand_row(bounds),
+            dino_y: Self::stand_y(bounds),
             status: DinoStatus::Running,
-            jump_velocity: 0,
+            velocity_y: 0.0,
             obstacles: Vec::with_capacity(8),
             score: Score(0),
             high_score: 0,
             level: Level(1),
-            speed: 1,
+            speed: 6.0,
             tick: 0,
-            hurt_ticks: 0,
             bounds,
-            ground_scroll: 0,
+            ground_scroll: 0.0,
+            score_progress: 0.0,
+            spawn_cooldown: 40,
         }
     }
 
@@ -87,7 +89,14 @@ impl DinoState {
     }
 
     #[must_use]
-    pub const fn stand_row(bounds: TerminalSize) -> u16 {
-        Self::ground_line(bounds).saturating_sub(2)
+    pub fn stand_y(bounds: TerminalSize) -> f32 {
+        f32::from(Self::ground_line(bounds).saturating_sub(2))
+    }
+
+    #[must_use]
+    pub fn dino_row(&self) -> u16 {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let row = self.dino_y.round().max(0.0) as u16;
+        row
     }
 }

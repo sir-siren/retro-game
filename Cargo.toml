@@ -11,8 +11,24 @@ path = "src/main.rs"
 [dependencies]
 crossterm = "0.28"
 ratatui = { version = "0.28", default-features = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
+dirs = "6"
 thiserror = "2"
 anyhow = "1"
+
+# lint config lives here, not scattered across source files
+[lints.rust]
+unsafe_code = "forbid"
+dead_code = "warn"
+unused = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+# these fire too often on short geometric helper names and re-exported types
+similar_names = "allow"
+module_name_repetitions = "allow"
 
 [profile.dev]
 opt-level = 0
@@ -21,8 +37,9 @@ incremental = true
 overflow-checks = true
 
 [profile.release]
+# "z" = optimize for binary size over raw throughput -- intentional for a terminal tool
 opt-level = "z"
-lto = true
+lto = false
 codegen-units = 1
 strip = true
 overflow-checks = false

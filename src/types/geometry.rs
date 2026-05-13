@@ -20,19 +20,6 @@ impl Vec2 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Vec2F {
-    pub x: f32,
-    pub y: f32,
-}
-
-impl Vec2F {
-    #[must_use]
-    pub const fn new(x: f32, y: f32) -> Self {
-        Self { x, y }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TerminalSize {
     pub width: u16,

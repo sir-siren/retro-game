@@ -7,6 +7,8 @@ pub enum AppError {
     Io(#[from] io::Error),
     #[error("Game execution failed: {0}")]
     Game(#[from] GameError),
+    #[error("Database error: {reason}")]
+    Database { reason: String },
 }
 
 #[derive(Debug, Error)]

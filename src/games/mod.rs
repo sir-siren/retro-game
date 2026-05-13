@@ -1,5 +1,10 @@
 pub mod bricks;
 pub mod dino;
+pub mod flappy;
+pub mod invaders;
+pub mod minesweeper;
+pub mod pong;
 pub mod rand;
 pub mod runner;
 pub mod snake;
+pub mod tetris;

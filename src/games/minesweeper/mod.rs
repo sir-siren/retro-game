@@ -6,38 +6,31 @@ use crate::engine::ArcadeTerminal;
 use crate::engine::input::Key;
 use crate::engine::loop_::{GameLoop, run_loop};
 use crate::engine::renderer::Buffer;
-use crate::games::bricks::state::BricksState;
+use crate::games::minesweeper::state::MinesweeperState;
 use crate::types::game::{Game, GameResult};
 use crate::types::geometry::TerminalSize;
 
-pub struct Bricks {
-    state: BricksState,
+pub struct Minesweeper {
+    state: MinesweeperState,
     retry_requested: bool,
 }
 
-impl Bricks {
+impl Minesweeper {
     #[must_use]
     pub fn new(viewport: TerminalSize) -> Self {
         Self {
-            state: BricksState::new(viewport),
+            state: MinesweeperState::new(viewport),
             retry_requested: false,
         }
     }
 }
 
-impl GameLoop for Bricks {
+impl GameLoop for Minesweeper {
     fn resize(&mut self, size: TerminalSize) {
         self.state.bounds = size;
-        let p_max = size.width.saturating_sub(self.state.paddle_width);
-        if self.state.paddle_col > p_max {
-            self.state.paddle_col = p_max;
-        }
     }
 
     fn tick(&mut self) {
-        if self.state.is_game_over && self.state.lives.0 == 0 {
-            return;
-        }
         logic::tick(&mut self.state);
     }
 
@@ -81,12 +74,12 @@ impl GameLoop for Bricks {
     }
 }
 
-impl Game for Bricks {
+impl Game for Minesweeper {
     fn name(&self) -> &'static str {
-        "Bricks"
+        "Minesweeper"
     }
 
     fn run(&mut self, terminal: &mut ArcadeTerminal) -> anyhow::Result<GameResult> {
-        Ok(run_loop(self, 33, terminal)?)
+        Ok(run_loop(self, 80, terminal)?)
     }
 }

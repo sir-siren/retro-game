@@ -2,117 +2,203 @@
 
 ## Overview
 
-One binary. Four games. A shared engine. No shared state between games — each game owns its own state struct and the engine drives all of them through the same two traits.
+Terminal Arcade is a single Rust binary named `arcade`. It contains nine games,
+a shared terminal engine, a Ratatui-backed renderer, a menu, and SQLite
+high-score persistence.
 
-The engine handles terminal I/O, input translation, and the game loop. The games handle everything else: state, logic, collision, rendering. Neither side knows the other's internals.
+The design keeps terminal I/O outside of game logic. Each game owns its state,
+input handling, update logic, collision rules, scoring, and rendering. The
+engine drives each game through a small `GameLoop` trait, and the menu launches
+games through the `Game` trait.
 
 ## Module Layout
 
-```
+```text
 src/
-├── main.rs               entry point, raw mode setup, panic hook
-├── menu.rs               game selection, routing, menu rendering
-├── engine/
-│   ├── input.rs          crossterm events → Key enum
-│   ├── loop_.rs          tick-based game loop, GameLoop trait
-│   ├── renderer.rs       double-buffered character grid
-│   └── terminal.rs       viewport size, screen clear
-├── games/
-│   ├── rand.rs           LCG PRNG (no external dependency)
-│   ├── runner/           highway dodger
-│   ├── bricks/           breakout
-│   ├── snake/            snake
-│   └── dino/             chrome t-rex
-└── types/
-    ├── error.rs          AppError, GameError
-    ├── game.rs           Game trait, GameResult
-    └── geometry.rs       Vec2, TerminalSize, Direction, Score, Level, Lives
+  main.rs                 binary entry point, raw mode, alternate screen, panic cleanup
+  menu.rs                 menu UI, game routing, score database integration
+  engine/
+    input.rs              crossterm key events to semantic Key values
+    loop_.rs              countdown, pause handling, resize handling, timed game loop
+    renderer.rs           styled character buffer rendered into a Ratatui frame
+    terminal.rs           terminal size query
+  games/
+    rand.rs               deterministic SplitMix64 helper
+    runner/               four-lane traffic dodger
+    bricks/               Breakout-style brick breaker
+    snake/                classic snake
+    dino/                 side-scrolling runner
+    tetris/               tetromino stacker
+    pong/                 paddle game
+    invaders/             Space Invaders-style shooter
+    minesweeper/          cursor-driven mine board
+    flappy/               pipe dodger
+  persistence/
+    mod.rs                persistence exports
+    schema.rs             high-score table and index SQL
+    score_db.rs           SQLite score database wrapper
+  types/
+    error.rs              AppError and GameError
+    game.rs               Game trait and GameResult
+    geometry.rs           shared Score, Level, Lives, Vec2, TerminalSize, Direction
+  ui/
+    components.rs         shared Ratatui overlays and HUD helpers
+    theme.rs              shared color palette and styles
 ```
 
-Each game module follows the same four-file pattern:
+Each game directory follows the same pattern:
 
-```
+```text
 games/<name>/
-├── mod.rs      GameLoop + Game trait impls, wires everything together
-├── state.rs    pure data structs, no logic
-├── logic.rs    state mutation — input, physics, collision, spawning
-└── render.rs   reads state, writes to Buffer
+  mod.rs                  Game and GameLoop implementation
+  state.rs                state structs and constants
+  logic.rs                input handling, physics, rules, scoring, collision
+  render.rs               state-to-buffer drawing
 ```
 
-This keeps logic testable without a terminal and rendering free of business logic.
+## Startup
 
-## Renderer
+`main.rs` enables raw mode, enters the terminal alternate screen, hides the
+cursor, creates a `ratatui::Terminal<CrosstermBackend<_>>`, then either opens the
+menu or launches a direct game selected with `--game <key>` or `--game=<key>`.
 
-`Buffer` holds two `Vec<char>` grids of identical size: `cells` (current frame) and `prev` (last flushed frame). On `flush()` it walks both grids simultaneously and emits cursor moves + character writes only for cells that differ. The result is minimal stdout writes per frame regardless of screen size.
+A panic hook restores the terminal before delegating to the default panic hook.
+Normal shutdown also leaves the alternate screen, shows the cursor, and disables
+raw mode.
 
+## Input
+
+`engine::input::parse_key` converts raw crossterm events into this semantic enum:
+
+```rust
+pub enum Key {
+    Quit,
+    Dir(Direction),
+    Action,
+    Retry,
+    Pause,
+    Hold,
+    Flag,
+    Number(u8),
+    None,
+}
 ```
-game.render(&mut buffer)   // game writes chars into cells[]
-buffer.flush(...)          // diff against prev[], write only changes
-                           // then swap prev = cells
-```
 
-Frame rate is ~30fps (33ms tick). The loop measures elapsed time and sleeps only the remainder, so the tick rate is stable under light load.
+Games do not import crossterm. Shared mappings include arrow keys and `WASD` for
+directions, `Space`/`Enter` for `Action`, `Q`/`Ctrl+C` for `Quit`, `R` for
+`Retry`, `P` for `Pause`, `C` for `Hold`, `F` for `Flag`, and `1` through `9`
+for menu or difficulty choices.
 
 ## Game Loop
 
-`run_loop<G: GameLoop>` drives any game that implements `GameLoop`:
+Every active game implements `GameLoop`:
 
 ```rust
 pub trait GameLoop {
     fn resize(&mut self, size: TerminalSize);
-    fn handle_input(&mut self, key: Key);
     fn tick(&mut self);
+    fn handle_input(&mut self, key: Key);
     fn render(&self, buffer: &mut Buffer);
     fn status(&self) -> Option<GameResult>;
 }
 ```
 
-Each iteration: poll for input → handle it → tick → check status → render → flush → sleep.
+`run_loop` owns the frame timing. It creates a `Buffer`, calls `resize`, renders
+a three-second countdown, then repeatedly:
 
-`Key::Quit` is handled by the loop itself before reaching the game. Terminal resize is detected on `Key::None` (the timeout path) and propagated via `resize()`.
+1. polls terminal input for the current tick duration,
+2. dispatches key input or resize events,
+3. handles pause mode when `P` is pressed,
+4. calls `tick`,
+5. checks `status`,
+6. renders into the buffer,
+7. draws the buffer into the Ratatui frame,
+8. sleeps the remaining tick time.
 
-## Input
-
-Raw crossterm key events are translated into a small semantic enum before reaching any game code:
-
-```rust
-pub enum Key {
-    Quit,
-    Dir(Direction),  // Up / Down / Left / Right
-    Action,          // Space or Enter
-    Number(u8),      // 1–9
-    None,            // timeout or unrecognised key
-}
-```
-
-Games never import crossterm. If the terminal layer changes, only `input.rs` needs updating.
+Most games run at a 33 ms loop tick. Minesweeper runs at 80 ms because it is
+turn-like and only needs a coarse timer.
 
 ## Game Trait
 
-`Game` is what `menu.rs` calls. It has two methods:
+The menu talks to games through `Game`:
 
 ```rust
 pub trait Game {
     fn name(&self) -> &str;
-    fn run(&mut self, viewport: TerminalSize) -> anyhow::Result<GameResult>;
+    fn run(&mut self, terminal: &mut ArcadeTerminal) -> anyhow::Result<GameResult>;
 }
 ```
 
-`run()` calls `run_loop` internally. The menu doesn't know or care what's inside.
+`GameResult` is one of `Quit`, `Retry { score, level }`,
+`GameOver { score, level }`, or `Complete { score, level }`. The menu retries a
+game when `should_retry()` is true and saves scores for results that carry a
+score and level.
+
+## Renderer
+
+`engine::renderer::Buffer` is a flat row-major grid of styled cells:
+
+```rust
+struct StyledCell {
+    ch: char,
+    style: ratatui::style::Style,
+}
+```
+
+Games draw with helpers such as `place`, `print`, `print_styled`,
+`print_right`, `horizontal_line`, and `dashed_line`. `render_to` copies the
+buffer into the active Ratatui frame buffer, centered in the available area.
+
+This renderer is not a stdout diff renderer. Ratatui owns frame output and
+terminal flushing through the `Terminal::draw` call.
+
+## Persistence
+
+`ScoreDb::open()` creates or opens `terminal-arcade/arcade.db` under the
+platform data directory returned by `dirs::data_dir()`. The schema is:
+
+```sql
+CREATE TABLE IF NOT EXISTS high_scores (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    game      TEXT    NOT NULL,
+    score     INTEGER NOT NULL,
+    level     INTEGER NOT NULL DEFAULT 1,
+    played_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_game_score
+ON high_scores(game, score DESC);
+```
+
+The menu opens the database once, ignores database startup failures so games can
+still run, displays each game's best score, and saves score-bearing results after
+a game exits or retries.
 
 ## Error Handling
 
-Two error types:
+`GameError` wraps terminal I/O failures and terminal-size failures inside the
+game loop. `AppError` wraps top-level I/O, game, and database errors. The game
+boundary uses `anyhow::Result<GameResult>` so menu code does not need to know
+each lower-level error type.
 
-- `GameError` — I/O errors that happen inside a game loop (crossterm calls, terminal queries). Propagated with `?`.
-- `AppError` — top-level wrapper, converts from both `GameError` and `io::Error`.
+The crate forbids `unsafe_code` through `Cargo.toml` lints.
 
-`anyhow::Result` is used at the `Game::run` boundary so the menu can handle game errors without importing game-internal types.
+## Build Profile And Lints
 
-## PRNG
+The package is `terminal-games` version `1.2.0`, Rust edition 2024, with
+`rust-version = "1.85.0"`. The binary target is named `arcade`.
 
-`games/rand.rs` exports a single `const fn fast_rand(seed: u64) -> u64` — a xorshift64 variant. Used by obstacle spawners in Runner and Dino. No `rand` crate, no thread-local state, fully deterministic per seed. Each game derives its seed from tick count XOR'd with the current score so patterns don't repeat the same way each run.
+Clippy `all`, `pedantic`, and `nursery` are denied in `Cargo.toml`, with local
+allows for noisy naming lints and a few checked cast lints in rendering and game
+math.
 
-## Release Profile
+The release profile is tuned for a small terminal binary:
 
-The `Cargo.toml` release profile uses `opt-level = "z"`, full LTO, single codegen unit, stripped symbols, and `panic = "abort"`. The final binary is small enough to distribute as a single file with no runtime dependencies.
+| Setting           | Value     |
+| ----------------- | --------- |
+| `opt-level`       | `"z"`     |
+| `lto`             | `false`   |
+| `codegen-units`   | `1`       |
+| `strip`           | `true`    |
+| `overflow-checks` | `false`   |
+| `panic`           | `"abort"` |

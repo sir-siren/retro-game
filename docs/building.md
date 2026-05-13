@@ -1,126 +1,166 @@
 # Building
 
-## Prerequisites
+## Requirements
 
-- Rust 1.85.0+ (edition 2024)
-- A terminal with UTF-8 support
+- Rust 1.85.0 or newer
+- Cargo from the same toolchain
+- A UTF-8 terminal with enough room for terminal graphics
 
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+Check the toolchain:
+
+```sh
+rustc --version
+cargo --version
+rustup show active-toolchain
+```
+
+Install or update Rust with `rustup` when needed:
+
+```sh
+rustup update stable
 ```
 
 ## Quick Start
 
-```bash
-# dev build — fast compile, no optimisations
-cargo run
+Run the arcade in development mode:
 
-# release build — optimised for your CPU
-RUSTFLAGS="-C target-cpu=native" cargo build --release
+```sh
+cargo run
+```
+
+Run a specific game:
+
+```sh
+cargo run -- --game snake
+cargo run -- --game=invaders
+```
+
+Valid direct game keys are:
+
+```text
+runner
+bricks
+snake
+dino
+tetris
+pong
+invaders
+minesweeper
+flappy
+```
+
+## Release Build
+
+Build the release binary:
+
+```sh
+cargo build --release
 ./target/release/arcade
 ```
 
-The `target-cpu=native` flag tells the compiler to use your CPU's full instruction set. Don't use it for binaries you plan to distribute — they'll crash on CPUs that don't share your instruction set.
+For a local-only binary, you can ask LLVM to optimize for the current CPU:
 
-## mise (recommended)
-
-If you use [mise](https://mise.jdx.dev), all common tasks are wired up:
-
-```bash
-mise run run      # dev mode
-mise run build    # release, native CPU
-mise run start    # run last release build
-mise run test     # nextest
-mise run lint     # clippy with full pedantic flags
-mise run ci       # fmt > check > lint > test > build
+```sh
+RUSTFLAGS="-C target-cpu=native" cargo build --release
 ```
 
-## Cross-compilation
+Do not use `target-cpu=native` for a portable release artifact. It can emit
+instructions that older or different CPUs do not support.
 
-### Linux static (portable, no libc dependency)
+## mise Tasks
 
-```bash
-sudo apt install musl-tools
+The repository includes `mise.toml` with these tasks:
+
+| Task                 | Command                                                                 | Purpose                          |
+| -------------------- | ----------------------------------------------------------------------- | -------------------------------- |
+| `mise run run`       | `cargo run`                                                             | Launch in dev mode.              |
+| `mise run build`     | `RUSTFLAGS="-C target-cpu=native" cargo build --release`                | Build a local optimized release. |
+| `mise run start`     | `./target/release/arcade`                                               | Run the last release binary.     |
+| `mise run check`     | `cargo check`                                                           | Type-check the main target.      |
+| `mise run test`      | `cargo nextest run`                                                     | Run tests with cargo-nextest.    |
+| `mise run lint`      | `cargo clippy -- -D clippy::all -D clippy::pedantic -D clippy::nursery` | Run strict Clippy.               |
+| `mise run fmt`       | `cargo fmt`                                                             | Format source.                   |
+| `mise run fmt:check` | `cargo fmt -- --check`                                                  | Check formatting.                |
+| `mise run watch`     | `cargo watch -x run`                                                    | Re-run on file changes.          |
+| `mise run ci`        | fmt, check, lint, nextest, release build                                | Local CI-style pipeline.         |
+| `mise run clean`     | `cargo clean`                                                           | Remove build artifacts.          |
+
+`cargo nextest` and `cargo watch` are external Cargo subcommands. If they are not
+installed, use the plain Cargo equivalents:
+
+```sh
+cargo test
+cargo run
+```
+
+## Recommended Checks
+
+Use these before handing off changes:
+
+```sh
+cargo fmt -- --check
+cargo check --all-targets
+cargo clippy --all-targets -- -D warnings
+cargo test
+cargo build --release
+```
+
+The project has strict lint configuration in `Cargo.toml`, including
+`unsafe_code = "forbid"` and denied Clippy `all`, `pedantic`, and `nursery`
+groups.
+
+## Release Profile
+
+The current `Cargo.toml` release profile is:
+
+| Setting           | Value     | Notes                                              |
+| ----------------- | --------- | -------------------------------------------------- |
+| `opt-level`       | `"z"`     | Optimize for binary size.                          |
+| `lto`             | `false`   | Link-time optimization is disabled.                |
+| `codegen-units`   | `1`       | Improves optimization at the cost of compile time. |
+| `strip`           | `true`    | Removes symbols from the release binary.           |
+| `overflow-checks` | `false`   | Disables runtime overflow checks in release.       |
+| `panic`           | `"abort"` | Avoids unwinding tables.                           |
+
+## Platform Notes
+
+`rusqlite` is built with the `bundled` feature, so the SQLite C source is built
+with the project. Some targets may need a working C compiler in addition to the
+Rust target.
+
+For Linux musl builds:
+
+```sh
 rustup target add x86_64-unknown-linux-musl
 cargo build --release --target x86_64-unknown-linux-musl
 ```
 
-### Linux ARM64
+For Linux ARM64 cross-builds, install an ARM64 linker and add the Rust target:
 
-```bash
-sudo apt install gcc-aarch64-linux-gnu
+```sh
 rustup target add aarch64-unknown-linux-gnu
 cargo build --release --target aarch64-unknown-linux-gnu
 ```
 
-Linker override in `.cargo/config.toml`:
+For macOS Apple Silicon from macOS:
 
-```toml
-[target.aarch64-unknown-linux-gnu]
-linker = "aarch64-linux-gnu-gcc"
-```
-
-### macOS Apple Silicon
-
-```bash
+```sh
 rustup target add aarch64-apple-darwin
 cargo build --release --target aarch64-apple-darwin
 ```
 
-### Windows
+For Windows MSVC from a Windows toolchain:
 
-```bash
+```sh
 rustup target add x86_64-pc-windows-msvc
 cargo build --release --target x86_64-pc-windows-msvc
 ```
 
-### Android (Termux, native)
-
-Termux runs native ARM binaries. No cross-compilation needed — just build on device:
-
-```bash
-pkg install rust git
-cargo build --release
-```
-
-### All platforms (CI)
-
-The GitHub Actions workflow in `.github/workflows/release.yml` builds for all platforms on every push to `main`. It uses [`cross`](https://github.com/cross-rs/cross) (Docker-based) for non-native targets and `cargo` directly for native ones.
-
-## Code Quality
-
-```bash
-cargo fmt -- --check
-cargo clippy -- -D clippy::all -D clippy::pedantic -D clippy::nursery
-cargo nextest run
-cargo doc --no-deps --open
-```
-
-The project enforces `clippy::pedantic` + `clippy::nursery` via `#![deny(...)]` in `main.rs`. Lint errors are compile errors.
-
-## Release Profile
-
-Defined in `Cargo.toml`:
-
-| Setting           | Value     | Effect                                              |
-| ----------------- | --------- | --------------------------------------------------- |
-| `opt-level`       | `"z"`     | Optimise for size over raw speed                    |
-| `lto`             | `true`    | Full LTO, removes dead code across crate boundaries |
-| `codegen-units`   | `1`       | Single codegen unit, best inter-procedural analysis |
-| `strip`           | `true`    | Strip all debug symbols                             |
-| `panic`           | `"abort"` | No unwind tables, smaller binary                    |
-| `overflow-checks` | `false`   | No runtime overflow detection                       |
-
-If you want max throughput instead of min size, swap `opt-level = "z"` for `opt-level = 3`.
+This repository does not currently include project-specific cross-compilation
+linker config or a GitHub Actions release workflow.
 
 ## WSL
 
-Build and run from WSL — output renders in Windows Terminal:
-
-```bash
-cd /mnt/d/terminal-arcade
-RUSTFLAGS="-C target-cpu=native -C link-arg=-fuse-ld=mold" cargo build --release
-./target/release/arcade
-```
-
-`mold` cuts incremental link time significantly. Install with `sudo apt install mold`, no other config needed.
+If Rust is installed in WSL, run the same commands with the WSL toolchain. For
+best build performance, keep the project under the WSL filesystem, such as
+`~/projects/terminal-arcade`, instead of under `/mnt/c/...`.

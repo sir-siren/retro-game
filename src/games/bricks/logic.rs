@@ -69,8 +69,8 @@ fn check_paddle_collision(state: &mut BricksState) {
 
     if state.ball.dy > 0.0 && state.ball.y >= paddle_y && state.ball.y <= paddle_y + 1.0 {
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let bx = state.ball.x.round() as u16;
-        if bx >= state.paddle_col && bx < state.paddle_col + state.paddle_width {
+        let ball_col = state.ball.x.round() as u16;
+        if ball_col >= state.paddle_col && ball_col < state.paddle_col + state.paddle_width {
             state.ball.y = paddle_y - 0.5;
             state.ball.dy = -state.ball.dy.abs();
 
@@ -83,9 +83,9 @@ fn check_paddle_collision(state: &mut BricksState) {
 
 fn check_brick_collisions(state: &mut BricksState) {
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let ball_c = state.ball.x.round() as u16;
+    let ball_col = state.ball.x.round() as u16;
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let ball_r = state.ball.y.round() as u16;
+    let ball_row = state.ball.y.round() as u16;
 
     let mut hit_idx: Option<usize> = None;
 
@@ -93,9 +93,9 @@ fn check_brick_collisions(state: &mut BricksState) {
         if !brick.is_alive {
             continue;
         }
-        if ball_c >= brick.col
-            && ball_c < brick.col + BricksState::BRICK_WIDTH
-            && ball_r == brick.row
+        if ball_col >= brick.col
+            && ball_col < brick.col + BricksState::BRICK_WIDTH
+            && ball_row == brick.row
         {
             hit_idx = Some(i);
             break;
@@ -151,7 +151,7 @@ mod tests {
     use crate::types::geometry::TerminalSize;
 
     #[test]
-    fn brick_collision_deflects() {
+    fn brick_hit_reduces_hp_and_reverses_ball_direction() {
         let mut state = BricksState::new(TerminalSize {
             width: 80,
             height: 24,

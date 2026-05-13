@@ -13,6 +13,7 @@ use crate::types::geometry::{Direction, TerminalSize};
 pub struct Dino {
     state: DinoState,
     is_down_held: bool,
+    retry_requested: bool,
 }
 
 impl Dino {
@@ -21,6 +22,7 @@ impl Dino {
         Self {
             state: DinoState::new(viewport),
             is_down_held: false,
+            retry_requested: false,
         }
     }
 }
@@ -28,9 +30,9 @@ impl Dino {
 impl GameLoop for Dino {
     fn resize(&mut self, size: TerminalSize) {
         self.state.bounds = size;
-        let stand = DinoState::stand_row(size);
+        let stand = DinoState::stand_y(size);
         if !self.state.status.is_jumping() {
-            self.state.dino_row = stand;
+            self.state.dino_y = stand;
         }
     }
 
@@ -42,8 +44,12 @@ impl GameLoop for Dino {
     }
 
     fn handle_input(&mut self, key: Key) {
-        if self.state.status.is_game_over() && key != Key::None {
-            self.state.status = DinoStatus::Complete;
+        if self.state.status.is_game_over() {
+            match key {
+                Key::Retry | Key::Action => self.retry_requested = true,
+                Key::Quit => self.state.status = DinoStatus::Complete,
+                _ => {}
+            }
             return;
         }
         self.is_down_held = matches!(key, Key::Dir(Direction::Down));
@@ -55,7 +61,12 @@ impl GameLoop for Dino {
     }
 
     fn status(&self) -> Option<GameResult> {
-        if self.state.status.is_complete() {
+        if self.retry_requested {
+            Some(GameResult::Retry {
+                score: self.state.score,
+                level: self.state.level,
+            })
+        } else if self.state.status.is_complete() {
             Some(GameResult::GameOver {
                 score: self.state.score,
                 level: self.state.level,

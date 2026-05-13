@@ -1,19 +1,24 @@
 use crate::engine::input::Key;
 use crate::games::dino::state::{DinoObstacle, DinoObstacleKind, DinoState, DinoStatus};
+use crate::games::rand::fast_rand;
 use crate::types::geometry::Direction;
 
-const GRAVITY: i16 = 1;
-const JUMP_FORCE: i16 = 6;
-const DINO_COL: u16 = 8;
-const DINO_WIDTH: u16 = 4;
-const DUCK_WIDTH: u16 = 6;
+const GRAVITY: f32 = 0.6;
+const FAST_FALL_GRAVITY: f32 = GRAVITY * 2.5;
+const JUMP_FORCE: f32 = 10.0;
+const VERTICAL_SCALE: f32 = 0.055;
+const DINO_COL: f32 = 8.0;
+const DINO_WIDTH: f32 = 4.0;
+const DUCK_WIDTH: f32 = 6.0;
+const MAX_SPEED: f32 = 13.0;
 
-const fn rand(seed: u64) -> u64 {
-    let mut x = seed.wrapping_add(0x9E37_79B9_7F4A_7C15);
-    x ^= x << 13;
-    x ^= x >> 7;
-    x ^= x << 17;
-    x
+/// Axis-aligned bounding box used for collision detection.
+#[derive(Debug, Clone, Copy)]
+struct HitBox {
+    left: f32,
+    right: f32,
+    top: f32,
+    bottom: f32,
 }
 
 pub fn tick(state: &mut DinoState) {
@@ -22,16 +27,18 @@ pub fn tick(state: &mut DinoState) {
     }
 
     state.tick = state.tick.wrapping_add(1);
-    state.ground_scroll = state.ground_scroll.wrapping_add(state.speed);
+    state.speed = (state.speed + 0.001).min(MAX_SPEED);
+    state.ground_scroll += state.speed * 0.16;
+    state.level.0 = ((state.score.0 / 250) + 1).min(10) as u8;
 
-    if state.tick % 5 == 0 {
-        state.score.0 = state.score.0.saturating_add(1);
-    }
-
-    if state.tick % 200 == 0 {
-        state.speed = state.speed.saturating_add(1).min(6);
-        if state.level.0 < 5 {
-            state.level.0 = state.level.0.saturating_add(1);
+    state.score_progress += state.speed * 0.08;
+    if state.score_progress >= 1.0 {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let gained = state.score_progress.floor() as u32;
+        state.score.0 = state.score.0.saturating_add(gained);
+        #[allow(clippy::cast_precision_loss)]
+        {
+            state.score_progress -= gained as f32;
         }
     }
 
@@ -41,15 +48,18 @@ pub fn tick(state: &mut DinoState) {
     maybe_spawn(state);
 }
 
-pub const fn handle_input(state: &mut DinoState, key: Key) {
+pub fn handle_input(state: &mut DinoState, key: Key) {
     match key {
         Key::Action | Key::Dir(Direction::Up)
             if !state.status.is_jumping() && !state.status.is_ducking() =>
         {
             state.status = DinoStatus::Jumping;
-            state.jump_velocity = JUMP_FORCE;
+            state.velocity_y = JUMP_FORCE;
         }
-        Key::Dir(Direction::Down) if !state.status.is_jumping() => {
+        Key::Dir(Direction::Down) if state.status.is_jumping() => {
+            state.velocity_y -= FAST_FALL_GRAVITY;
+        }
+        Key::Dir(Direction::Down) => {
             state.status = DinoStatus::Ducking;
         }
         _ => {}
@@ -67,38 +77,35 @@ fn apply_gravity(state: &mut DinoState) {
         return;
     }
 
-    if state.jump_velocity > 0 {
-        let rise = state.jump_velocity.unsigned_abs().min(state.dino_row);
-        state.dino_row = state.dino_row.saturating_sub(rise);
-    } else {
-        let fall = state.jump_velocity.unsigned_abs();
-        state.dino_row = state.dino_row.saturating_add(fall);
-    }
+    state.dino_y -= state.velocity_y * VERTICAL_SCALE;
+    state.velocity_y -= GRAVITY;
 
-    state.jump_velocity = state.jump_velocity.saturating_sub(GRAVITY);
-
-    let stand = DinoState::stand_row(state.bounds);
-    if state.dino_row >= stand {
-        state.dino_row = stand;
+    let stand = DinoState::stand_y(state.bounds);
+    if state.dino_y >= stand {
+        state.dino_y = stand;
         state.status = DinoStatus::Running;
-        state.jump_velocity = 0;
+        state.velocity_y = 0.0;
     }
 }
 
 fn scroll_obstacles(state: &mut DinoState) {
     for obs in &mut state.obstacles {
-        obs.col = obs.col.saturating_sub(state.speed);
+        obs.col -= state.speed * 0.16;
     }
-    state.obstacles.retain(|o| o.col > 2);
+    state.obstacles.retain(|o| o.col > 2.0);
 }
 
 pub fn check_collisions(state: &mut DinoState) {
-    let (dl, dr, dt, db) = dino_box(state);
+    let dino = dino_hitbox(state);
     let ground = DinoState::ground_line(state.bounds);
 
     for obs in &state.obstacles {
-        let (ol, or_, ot, ob_) = obstacle_box(*obs, ground);
-        if dl <= or_ && dr >= ol && dt <= ob_ && db >= ot {
+        let obstacle = obstacle_hitbox(*obs, ground);
+        let overlaps = dino.left <= obstacle.right
+            && dino.right >= obstacle.left
+            && dino.top <= obstacle.bottom
+            && dino.bottom >= obstacle.top;
+        if overlaps {
             if state.score.0 > state.high_score {
                 state.high_score = state.score.0;
             }
@@ -108,69 +115,102 @@ pub fn check_collisions(state: &mut DinoState) {
     }
 }
 
-const fn dino_box(state: &DinoState) -> (u16, u16, u16, u16) {
+const fn dino_hitbox(state: &DinoState) -> HitBox {
     if state.status.is_ducking() {
-        (
-            DINO_COL,
-            DINO_COL + DUCK_WIDTH - 1,
-            state.dino_row + 1,
-            state.dino_row + 1,
-        )
+        HitBox {
+            left: DINO_COL,
+            right: DINO_COL + DUCK_WIDTH - 1.0,
+            top: state.dino_y + 1.0,
+            bottom: state.dino_y + 1.8,
+        }
     } else {
-        (
-            DINO_COL,
-            DINO_COL + DINO_WIDTH - 1,
-            state.dino_row,
-            state.dino_row + 1,
-        )
+        HitBox {
+            left: DINO_COL,
+            right: DINO_COL + DINO_WIDTH - 1.0,
+            top: state.dino_y,
+            bottom: state.dino_y + 2.0,
+        }
     }
 }
 
-const fn obstacle_box(obs: DinoObstacle, ground: u16) -> (u16, u16, u16, u16) {
-    let stand = ground.saturating_sub(2);
+fn obstacle_hitbox(obs: DinoObstacle, ground: u16) -> HitBox {
+    let stand = f32::from(ground.saturating_sub(2));
     match obs.kind {
-        DinoObstacleKind::SmallCactus => (obs.col, obs.col + 1, stand, stand + 1),
-        DinoObstacleKind::LargeCactus => (obs.col, obs.col + 1, stand.saturating_sub(1), stand + 1),
-        DinoObstacleKind::DoubleCactus => (obs.col, obs.col + 3, stand, stand + 1),
-        DinoObstacleKind::LowBird => {
-            let row = stand;
-            (obs.col, obs.col + 2, row, row)
-        }
-        DinoObstacleKind::HighBird => {
-            let row = stand.saturating_sub(4);
-            (obs.col, obs.col + 2, row, row)
-        }
+        DinoObstacleKind::SmallCactus => HitBox {
+            left: obs.col,
+            right: obs.col + 1.0,
+            top: stand,
+            bottom: stand + 1.0,
+        },
+        DinoObstacleKind::LargeCactus => HitBox {
+            left: obs.col,
+            right: obs.col + 2.0,
+            top: stand - 1.0,
+            bottom: stand + 1.0,
+        },
+        DinoObstacleKind::CactusCluster => HitBox {
+            left: obs.col,
+            right: obs.col + 5.0,
+            top: stand,
+            bottom: stand + 1.0,
+        },
+        DinoObstacleKind::LowBird => HitBox {
+            left: obs.col,
+            right: obs.col + 2.0,
+            top: stand,
+            bottom: stand,
+        },
+        DinoObstacleKind::HighBird => HitBox {
+            left: obs.col,
+            right: obs.col + 2.0,
+            top: stand - 4.0,
+            bottom: stand - 4.0,
+        },
     }
 }
 
 fn maybe_spawn(state: &mut DinoState) {
-    let gap = 80u64.saturating_sub(u64::from(state.speed) * 8).max(25);
-    if state.tick % gap != 0 {
+    if state.spawn_cooldown > 0 {
+        state.spawn_cooldown = state.spawn_cooldown.saturating_sub(1);
         return;
     }
 
-    let min_gap = state.bounds.width / 3;
+    let min_gap = f32::from(state.bounds.width) * min_gap_ratio(state.speed);
     if let Some(last) = state.obstacles.last() {
-        if last.col > state.bounds.width.saturating_sub(min_gap) {
+        if last.col > f32::from(state.bounds.width) - min_gap {
             return;
         }
     }
 
-    let r = rand(state.tick ^ u64::from(state.score.0));
-    let kind = pick_kind(r, state.level.0);
+    let rand_value = fast_rand(state.tick ^ u64::from(state.score.0));
+    let kind = pick_kind(rand_value, state.score.0);
     state.obstacles.push(DinoObstacle {
-        col: state.bounds.width.saturating_sub(3),
+        col: f32::from(state.bounds.width.saturating_sub(3)),
         kind,
     });
+    state.spawn_cooldown = next_spawn_cooldown(state.speed, rand_value);
 }
 
-const fn pick_kind(r: u64, level: u8) -> DinoObstacleKind {
-    let bucket = r % 10;
-    match (bucket, level) {
-        (4..=5, l) if l >= 2 => DinoObstacleKind::LargeCactus,
-        (6, l) if l >= 2 => DinoObstacleKind::DoubleCactus,
-        (7..=8, l) if l >= 3 => DinoObstacleKind::LowBird,
-        (9, l) if l >= 2 => DinoObstacleKind::HighBird,
+fn min_gap_ratio(speed: f32) -> f32 {
+    speed.mul_add(-0.015, 0.55).clamp(0.32, 0.55)
+}
+
+fn next_spawn_cooldown(speed: f32, rand_value: u64) -> u16 {
+    let base = speed.mul_add(-4.0, 80.0).clamp(28.0, 70.0);
+    let rand_bucket = u16::try_from(rand_value % 40).unwrap_or(0);
+    let variance = 0.8 + f32::from(rand_bucket) / 100.0;
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let cooldown = (base * variance).round() as u16;
+    cooldown.max(18)
+}
+
+const fn pick_kind(rand_value: u64, score: u32) -> DinoObstacleKind {
+    let rand_bucket = rand_value % 10;
+    match rand_bucket {
+        4 | 5 => DinoObstacleKind::LargeCactus,
+        6 if score >= 300 => DinoObstacleKind::CactusCluster,
+        7 | 8 if score >= 500 => DinoObstacleKind::LowBird,
+        9 if score >= 500 => DinoObstacleKind::HighBird,
         _ => DinoObstacleKind::SmallCactus,
     }
 }
@@ -180,7 +220,7 @@ mod tests {
     use super::*;
     use crate::types::geometry::TerminalSize;
 
-    fn vp() -> TerminalSize {
+    fn default_viewport() -> TerminalSize {
         TerminalSize {
             width: 80,
             height: 24,
@@ -188,34 +228,34 @@ mod tests {
     }
 
     #[test]
-    fn jump_rises_then_falls() {
-        let mut s = DinoState::new(vp());
-        let start = s.dino_row;
-        handle_input(&mut s, Key::Action);
-        assert!(s.status.is_jumping());
-        tick(&mut s);
-        assert!(s.dino_row < start);
+    fn jump_input_raises_dino_above_starting_row() {
+        let mut state = DinoState::new(default_viewport());
+        let start_y = state.dino_y;
+        handle_input(&mut state, Key::Action);
+        assert!(state.status.is_jumping());
+        tick(&mut state);
+        assert!(state.dino_y < start_y);
     }
 
     #[test]
-    fn duck_hitbox_lower() {
-        let mut s = DinoState::new(vp());
-        s.status = DinoStatus::Ducking;
-        let (_, _, top_duck, _) = dino_box(&s);
-        s.status = DinoStatus::Running;
-        let (_, _, top_stand, _) = dino_box(&s);
-        assert!(top_duck > top_stand);
+    fn duck_hitbox_top_is_lower_than_standing_top() {
+        let mut state = DinoState::new(default_viewport());
+        state.status = DinoStatus::Ducking;
+        let duck_top = dino_hitbox(&state).top;
+        state.status = DinoStatus::Running;
+        let stand_top = dino_hitbox(&state).top;
+        assert!(duck_top > stand_top);
     }
 
     #[test]
-    fn collision_triggers_game_over() {
-        let mut s = DinoState::new(vp());
-        s.obstacles.push(DinoObstacle {
+    fn obstacle_overlap_with_dino_triggers_game_over() {
+        let mut state = DinoState::new(default_viewport());
+        state.obstacles.push(DinoObstacle {
             col: DINO_COL,
             kind: DinoObstacleKind::SmallCactus,
         });
-        s.dino_row = DinoState::stand_row(s.bounds);
-        check_collisions(&mut s);
-        assert!(s.status.is_game_over());
+        state.dino_y = DinoState::stand_y(state.bounds);
+        check_collisions(&mut state);
+        assert!(state.status.is_game_over());
     }
 }
