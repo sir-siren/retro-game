@@ -16,9 +16,6 @@ defaults:
 env:
     CARGO_TERM_COLOR: always
     BINARY_NAME: arcade
-    # LTO is intentionally excluded here — it's set per-matrix via ltoFlag
-    # because the cross Docker container injects -C embed-bitcode=no, which
-    # is incompatible with any form of LTO.
     RUSTFLAGS_BASE: "-C opt-level=z -C codegen-units=1 -C strip=symbols"
 
 jobs:
@@ -69,8 +66,6 @@ jobs:
                       artifact: arcade-linux-aarch64
                       useCross: true
                       canTest: false
-                      # cross injects -C embed-bitcode=no which is incompatible
-                      # with any LTO — leave empty for this target
                       ltoFlag: ""
 
         steps:
