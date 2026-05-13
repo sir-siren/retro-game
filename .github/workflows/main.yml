@@ -16,7 +16,10 @@ defaults:
 env:
     CARGO_TERM_COLOR: always
     BINARY_NAME: arcade
-    RUSTFLAGS_BASE: "-C opt-level=z -C lto=fat -C codegen-units=1 -C strip=symbols"
+    # LTO is intentionally excluded here — it's set per-matrix via ltoFlag
+    # because the cross Docker container injects -C embed-bitcode=no, which
+    # is incompatible with any form of LTO.
+    RUSTFLAGS_BASE: "-C opt-level=z -C codegen-units=1 -C strip=symbols"
 
 jobs:
     build:
@@ -31,36 +34,44 @@ jobs:
                       artifact: arcade-macos-aarch64
                       useCross: false
                       canTest: true
+                      ltoFlag: "-C lto=fat"
 
                     - target: x86_64-apple-darwin
                       os: macos-15-intel
                       artifact: arcade-macos-x86_64
                       useCross: false
                       canTest: true
+                      ltoFlag: "-C lto=fat"
 
                     - target: x86_64-pc-windows-msvc
                       os: windows-latest
                       artifact: arcade-windows-x86_64.exe
                       useCross: false
                       canTest: true
+                      ltoFlag: "-C lto=fat"
 
                     - target: aarch64-pc-windows-msvc
                       os: windows-latest
                       artifact: arcade-windows-aarch64.exe
                       useCross: false
                       canTest: false
+                      ltoFlag: "-C lto=fat"
 
                     - target: x86_64-unknown-linux-gnu
                       os: ubuntu-latest
                       artifact: arcade-linux-x86_64
                       useCross: false
                       canTest: true
+                      ltoFlag: "-C lto=fat"
 
                     - target: aarch64-unknown-linux-gnu
                       os: ubuntu-latest
                       artifact: arcade-linux-aarch64
                       useCross: true
                       canTest: false
+                      # cross injects -C embed-bitcode=no which is incompatible
+                      # with any LTO — leave empty for this target
+                      ltoFlag: ""
 
         steps:
             - name: checkout
@@ -85,7 +96,7 @@ jobs:
 
             - name: buildBinary
               env:
-                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }} -C panic=abort"
+                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }} ${{ matrix.ltoFlag }} -C panic=abort"
               run: |
                   cmd="cargo"
                   [ "${{ matrix.useCross }}" = "true" ] && cmd="cross"
@@ -94,7 +105,7 @@ jobs:
             - name: runTests
               if: matrix.canTest
               env:
-                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }}"
+                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }} ${{ matrix.ltoFlag }}"
               run: cargo test --release --target ${{ matrix.target }}
 
             - name: stageArtifact
