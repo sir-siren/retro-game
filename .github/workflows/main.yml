@@ -31,42 +31,42 @@ jobs:
                       artifact: arcade-macos-aarch64
                       useCross: false
                       canTest: true
-                      ltoFlag: "-C lto=fat"
+                      useLto: true
 
                     - target: x86_64-apple-darwin
                       os: macos-15-intel
                       artifact: arcade-macos-x86_64
                       useCross: false
                       canTest: true
-                      ltoFlag: "-C lto=fat"
+                      useLto: true
 
                     - target: x86_64-pc-windows-msvc
                       os: windows-latest
                       artifact: arcade-windows-x86_64.exe
                       useCross: false
                       canTest: true
-                      ltoFlag: "-C lto=fat"
+                      useLto: true
 
                     - target: aarch64-pc-windows-msvc
                       os: windows-latest
                       artifact: arcade-windows-aarch64.exe
                       useCross: false
                       canTest: false
-                      ltoFlag: "-C lto=fat"
+                      useLto: true
 
                     - target: x86_64-unknown-linux-gnu
                       os: ubuntu-latest
                       artifact: arcade-linux-x86_64
                       useCross: false
                       canTest: true
-                      ltoFlag: "-C lto=fat"
+                      useLto: true
 
                     - target: aarch64-unknown-linux-gnu
                       os: ubuntu-latest
                       artifact: arcade-linux-aarch64
                       useCross: true
                       canTest: false
-                      ltoFlag: ""
+                      useLto: false
 
         steps:
             - name: checkout
@@ -91,7 +91,8 @@ jobs:
 
             - name: buildBinary
               env:
-                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }} ${{ matrix.ltoFlag }} -C panic=abort"
+                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }} -C panic=abort"
+                  CARGO_PROFILE_RELEASE_LTO: ${{ matrix.useLto && 'fat' || 'false' }}
               run: |
                   cmd="cargo"
                   [ "${{ matrix.useCross }}" = "true" ] && cmd="cross"
@@ -100,7 +101,7 @@ jobs:
             - name: runTests
               if: matrix.canTest
               env:
-                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }} ${{ matrix.ltoFlag }}"
+                  RUSTFLAGS: "${{ env.RUSTFLAGS_BASE }}"
               run: cargo test --release --target ${{ matrix.target }}
 
             - name: stageArtifact
@@ -114,8 +115,7 @@ jobs:
               with:
                   name: ${{ matrix.artifact }}
                   path: ${{ matrix.artifact }}
-                  archive: false
-                  retentionDays: 1
+                  retention-days: 1
 
     release:
         name: Release
@@ -135,7 +135,7 @@ jobs:
                   echo "tag=v0.${COUNT}.0" >> "$GITHUB_OUTPUT"
 
             - name: downloadArtifacts
-              uses: actions/download-artifact@v8
+              uses: actions/download-artifact@v4
               with:
                   path: artifacts
                   merge-multiple: true
